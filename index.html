@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ライフプランニング</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f2f2f7;height:100dvh;overflow:hidden;overscroll-behavior:none}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:430px;margin:0 auto;background:#f2f2f7;position:relative;overflow:hidden}
+#content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:88px}
+.page{display:none}
+.page.active{display:block}
+
+/* ── Header ── */
+.page-header{background:white;padding:16px 16px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:10}
+.page-header h1{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+
+/* ── Bottom Tab Bar ── */
+#tabbar{position:absolute;bottom:0;left:0;right:0;height:82px;background:rgba(255,255,255,0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,0.1);display:flex;align-items:flex-start;padding-top:8px;z-index:100}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;cursor:pointer;padding:4px 0;color:#8e8e93;font-size:10px;font-family:inherit}
+.tab-btn.active{color:#007aff}
+.tab-icon{font-size:24px;line-height:1}
+.tab-add .tab-icon{width:52px;height:52px;background:#007aff;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:300;margin-top:-18px;box-shadow:0 4px 12px rgba(0,122,255,0.4)}
+
+/* ── Summary Cards ── */
+.summary-scroll{display:flex;gap:10px;padding:14px 16px;overflow-x:auto;scrollbar-width:none}
+.summary-scroll::-webkit-scrollbar{display:none}
+.s-card{min-width:120px;background:white;border-radius:14px;padding:12px 14px;box-shadow:0 1px 6px rgba(0,0,0,0.08);flex-shrink:0}
+.s-label{font-size:10px;color:#8e8e93;margin-bottom:3px}
+.s-val{font-size:20px;font-weight:700;line-height:1.1}
+.s-sub{font-size:10px;color:#8e8e93;margin-top:2px}
+.c-red .s-val{color:#ff3b30}
+.c-green .s-val{color:#34c759}
+.c-blue .s-val{color:#007aff}
+.c-purple .s-val{color:#af52de}
+
+/* ── Chart ── */
+.chart-wrap{background:white;margin:0 12px 14px;border-radius:16px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,0.08)}
+.period-tabs{display:flex;gap:6px;margin-bottom:12px}
+.ptab{flex:1;padding:6px;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;background:white;color:#8e8e93;cursor:pointer;font-family:inherit}
+.ptab.active{background:#007aff;color:white;border-color:#007aff;font-weight:600}
+.chart-legend{display:flex;gap:12px;margin-top:10px;justify-content:center}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#666}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* ── Section Title ── */
+.sec-title{font-size:12px;font-weight:600;color:#8e8e93;padding:4px 28px 6px;letter-spacing:0.4px;text-transform:uppercase}
+
+/* ── Timeline ── */
+.timeline-wrap{background:white;margin:0 12px 16px;border-radius:16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08)}
+.ev-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px}
+.ev-row:last-child{border-bottom:none}
+.ev-age{font-size:12px;color:#8e8e93;min-width:32px;font-variant-numeric:tabular-nums}
+.ev-icon{font-size:18px}
+.ev-name{flex:1;font-size:15px;font-weight:500}
+.ev-amt{font-size:14px;font-weight:700}
+.ev-amt.out{color:#ff3b30}
+.ev-amt.in{color:#34c759}
+
+/* ── Overlay & Sheet ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.show{opacity:1;pointer-events:all}
+.bsheet{position:absolute;bottom:0;left:0;right:0;background:white;border-radius:20px 20px 0 0;z-index:201;transform:translateY(100%);transition:transform .32s cubic-bezier(0.32,0.72,0,1);max-height:92%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.bsheet.show{transform:translateY(0)}
+.sh-handle{width:36px;height:4px;background:#d1d1d6;border-radius:2px;margin:10px auto 0}
+.sh-title{font-size:19px;font-weight:700;padding:14px 20px 6px}
+
+/* ── Type Buttons ── */
+.type-btns{display:flex;flex-direction:column;gap:10px;padding:10px 20px 24px}
+.type-btn{display:flex;align-items:center;gap:14px;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;text-align:left;font-family:inherit;transition:transform .1s;width:100%}
+.type-btn:active{transform:scale(.97)}
+.type-btn.t-inc{background:#e8f5e9;color:#1b5e20}
+.type-btn.t-exp{background:#fce4ec;color:#880e4f}
+.type-btn.t-ev{background:#e3f2fd;color:#0d47a1}
+.tb-icon{font-size:28px}
+.tb-sub{font-size:12px;font-weight:400;opacity:.7;margin-top:1px}
+
+/* ── Form ── */
+.fg{padding:8px 20px}
+.fl{font-size:12px;color:#8e8e93;margin-bottom:5px;display:block;font-weight:500}
+.fi{width:100%;padding:13px;border:1.5px solid #e5e5ea;border-radius:12px;font-size:17px;outline:none;font-family:inherit;transition:border-color .2s;background:white}
+.fi:focus{border-color:#007aff}
+.frow{display:flex;gap:10px;padding:8px 20px}
+.frow .fg{padding:0;flex:1}
+
+/* ── Stepper ── */
+.stepper{display:flex;align-items:center;border:1.5px solid #e5e5ea;border-radius:12px;overflow:hidden;height:48px}
+.sp-btn{width:44px;height:100%;border:none;background:#f2f2f7;font-size:22px;cursor:pointer;color:#007aff;display:flex;align-items:center;justify-content:center;font-family:inherit;flex-shrink:0}
+.sp-val{flex:1;text-align:center;font-size:17px;font-weight:600}
+
+/* ── Unit Toggle ── */
+.utgl{display:flex;border:1.5px solid #007aff;border-radius:10px;overflow:hidden;height:48px}
+.uopt{flex:1;border:none;background:white;color:#007aff;font-size:14px;cursor:pointer;font-family:inherit;font-weight:500}
+.uopt.active{background:#007aff;color:white}
+
+/* ── Segment ── */
+.seg{display:flex;background:#e9e9eb;border-radius:9px;padding:2px;margin:8px 20px}
+.sopt{flex:1;padding:7px;border:none;background:transparent;border-radius:7px;font-size:14px;cursor:pointer;font-family:inherit;transition:background .15s}
+.sopt.active{background:white;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+
+/* ── Advanced ── */
+.adv-tog{padding:8px 20px;color:#007aff;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none}
+.adv-body{display:none}
+.adv-body.open{display:block}
+
+/* ── Submit ── */
+.sub-btn{margin:12px 20px;width:calc(100% - 40px);padding:16px;background:#007aff;color:white;border:none;border-radius:14px;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
+.sub-btn:active{opacity:.85}
+
+/* ── Quick Event Grid ── */
+.ev-cat{font-size:13px;font-weight:600;color:#3c3c43;padding:10px 20px 4px}
+.ev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 20px 8px}
+.eq-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 4px;background:#f2f2f7;border:none;border-radius:12px;cursor:pointer;font-size:11px;color:#3c3c43;font-family:inherit;line-height:1.3;text-align:center;transition:transform .1s}
+.eq-btn:active{transform:scale(.94)}
+.eq-icon{font-size:24px}
+
+/* ── Confirm Card ── */
+.conf-card{background:#f2f2f7;border-radius:14px;margin:4px 20px 14px;padding:2px 16px}
+.conf-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #e5e5ea}
+.conf-row:last-child{border-bottom:none}
+.conf-k{font-size:14px;color:#8e8e93}
+.conf-v{font-size:15px;font-weight:600}
+
+/* ── Settings ── */
+.set-sec{background:white;margin:0 12px 12px;border-radius:16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08)}
+.set-row{display:flex;align-items:center;padding:15px 16px;border-bottom:1px solid #f2f2f7;cursor:pointer}
+.set-row:last-child{border-bottom:none}
+.set-lbl{flex:1;font-size:16px}
+.set-val{font-size:15px;color:#8e8e93;margin-right:6px}
+.set-arr{color:#c7c7cc;font-size:16px}
+.set-row.danger .set-lbl{color:#ff3b30}
+.set-sec-title{font-size:12px;color:#8e8e93;padding:16px 28px 6px;text-transform:uppercase;letter-spacing:0.4px}
+
+/* ── Entry List ── */
+.ent-item{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px}
+.ent-item:last-child{border-bottom:none}
+.ent-ico{font-size:18px}
+.ent-info{flex:1}
+.ent-name{font-size:16px;font-weight:500}
+.ent-detail{font-size:12px;color:#8e8e93;margin-top:2px}
+.ent-amt{font-size:15px;font-weight:700}
+.ent-amt.inc{color:#34c759}
+.ent-amt.exp{color:#ff3b30}
+.del-btn{background:#ff3b30;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:36px 20px;color:#8e8e93}
+.empty-ico{font-size:44px;margin-bottom:10px}
+.empty p{font-size:15px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="content">
+
+    <!-- ① Graph Page -->
+    <div class="page active" id="page-graph">
+      <div class="page-header"><h1>資産シミュレーション</h1></div>
+      <div class="summary-scroll" id="summaryCards"></div>
+      <div class="chart-wrap">
+        <div class="period-tabs">
+          <button class="ptab active" onclick="setPeriod('all',this)">全期間</button>
+          <button class="ptab" onclick="setPeriod('pre',this)">〜50歳</button>
+          <button class="ptab" onclick="setPeriod('post',this)">老後〜</button>
+        </div>
+        <canvas id="mainChart"></canvas>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#007aff"></span>総資産</span>
+          <span class="legend-item"><span class="legend-dot" style="background:rgba(52,199,89,.7)"></span>年間収入</span>
+          <span class="legend-item"><span class="legend-dot" style="background:rgba(255,59,48,.7)"></span>年間支出</span>
+        </div>
+      </div>
+      <div class="sec-title">イベント</div>
+      <div class="timeline-wrap" id="timeline"></div>
+    </div>
+
+    <!-- ② Add (placeholder) -->
+    <div class="page" id="page-add"></div>
+
+    <!-- ③ Settings Page -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><h1>設定</h1></div>
+      <p class="set-sec-title">基本情報</p>
+      <div class="set-sec">
+        <div class="set-row" onclick="editBasic('age')">
+          <span class="set-lbl">現在の年齢</span>
+          <span class="set-val" id="d-age"></span><span class="set-arr">›</span>
+        </div>
+        <div class="set-row" onclick="editBasic('savings')">
+          <span class="set-lbl">現在の貯蓄</span>
+          <span class="set-val" id="d-savings"></span><span class="set-arr">›</span>
+        </div>
+        <div class="set-row" onclick="editBasic('endAge')">
+          <span class="set-lbl">終了年齢</span>
+          <span class="set-val" id="d-endAge"></span><span class="set-arr">›</span>
+        </div>
+      </div>
+      <p class="set-sec-title">登録済みデータ</p>
+      <div class="set-sec">
+        <div class="set-row" onclick="showList('income')">
+          <span class="set-lbl">収入</span>
+          <span class="set-val" id="d-inc-count"></span><span class="set-arr">›</span>
+        </div>
+        <div class="set-row" onclick="showList('expense')">
+          <span class="set-lbl">支出</span>
+          <span class="set-val" id="d-exp-count"></span><span class="set-arr">›</span>
+        </div>
+        <div class="set-row" onclick="showList('event')">
+          <span class="set-lbl">ライフイベント</span>
+          <span class="set-val" id="d-ev-count"></span><span class="set-arr">›</span>
+        </div>
+      </div>
+      <p class="set-sec-title">データ管理</p>
+      <div class="set-sec">
+        <div class="set-row" onclick="exportJSON()">
+          <span class="set-lbl">JSONエクスポート</span><span class="set-arr">›</span>
+        </div>
+        <div class="set-row danger" onclick="resetAll()">
+          <span class="set-lbl">データをリセット</span><span class="set-arr">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Tab Bar -->
+  <div id="tabbar">
+    <button class="tab-btn active" id="tab-graph" onclick="goTab('graph')">
+      <span class="tab-icon">📊</span><span>グラフ</span>
+    </button>
+    <button class="tab-btn tab-add" id="tab-add" onclick="openAdd()">
+      <span class="tab-icon">＋</span><span>追加</span>
+    </button>
+    <button class="tab-btn" id="tab-settings" onclick="goTab('settings')">
+      <span class="tab-icon">☰</span><span>設定</span>
+    </button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="bsheet" id="bsheet">
+  <div class="sh-handle"></div>
+  <div id="shBody"></div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let S = JSON.parse(localStorage.getItem('lp2') || 'null') || {
+  age:30, endAge:90, savings:0, incomes:[], expenses:[], events:[]
+};
+const save = () => localStorage.setItem('lp2', JSON.stringify(S));
+
+// ─── Simulation ──────────────────────────────────────────
+function simulate() {
+  const ages=[], assets=[], yInc=[], yExp=[];
+  let bal = S.savings;
+  for(let a=S.age; a<=S.endAge; a++){
+    let inc=0, exp=0;
+    S.incomes.forEach(it=>{
+      if(a>=it.startAge && (it.endAge===''||a<=+it.endAge)){
+        const mon = it.unit==='month' ? it.amount : it.amount/12;
+        const r = 1+(parseFloat(it.rate)||0)/100;
+        inc += mon*12 * Math.pow(r, a-it.startAge);
+      }
+    });
+    S.expenses.forEach(it=>{
+      if(a>=it.startAge && (it.endAge===''||a<=+it.endAge)){
+        const mon = it.unit==='month' ? it.amount : it.amount/12;
+        const r = 1+(parseFloat(it.rate)||0)/100;
+        exp += mon*12 * Math.pow(r, a-it.startAge);
+      }
+    });
+    S.events.forEach(ev=>{
+      for(let d=0;d<(ev.duration||1);d++){
+        if(a===ev.age+d){ ev.type==='income'?inc+=ev.amount:exp+=ev.amount; }
+      }
+    });
+    bal += inc - exp;
+    ages.push(a); assets.push(Math.round(bal));
+    yInc.push(Math.round(inc)); yExp.push(Math.round(exp));
+  }
+  return {ages, assets, yInc, yExp};
+}
+
+// ─── Chart ───────────────────────────────────────────────
+let chart=null, period='all';
+
+function setPeriod(p, el){
+  period=p;
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderChart();
+}
+
+function renderChart(){
+  const sim = simulate();
+  let idxs = sim.ages.map((_,i)=>i);
+  if(period==='pre')  idxs = idxs.filter(i=>sim.ages[i]<=50);
+  if(period==='post') idxs = idxs.filter(i=>sim.ages[i]>=60);
+
+  const labels   = idxs.map(i=>sim.ages[i]+'歳');
+  const assets   = idxs.map(i=>sim.assets[i]);
+  const incomes  = idxs.map(i=>sim.yInc[i]);
+  const expenses = idxs.map(i=>sim.yExp[i]);
+
+  // color negative segments red
+  const lineColors = assets.map(v=>v<0?'rgba(255,59,48,1)':'rgba(0,122,255,1)');
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    data:{
+      labels,
+      datasets:[
+        {type:'line', label:'総資産', data:assets,
+         borderColor:'#007aff', backgroundColor:'rgba(0,122,255,0.07)',
+         borderWidth:2.5, pointRadius:0, pointHoverRadius:5, fill:true, tension:0.3, yAxisID:'y', order:0},
+        {type:'bar', label:'年間収入', data:incomes,
+         backgroundColor:'rgba(52,199,89,0.55)', yAxisID:'y2', order:1, borderRadius:2},
+        {type:'bar', label:'年間支出', data:expenses,
+         backgroundColor:'rgba(255,59,48,0.55)', yAxisID:'y2', order:1, borderRadius:2}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toLocaleString()}万円`}}
+      },
+      scales:{
+        x:{ticks:{maxTicksLimit:7, font:{size:10}}, grid:{display:false}},
+        y:{position:'left', ticks:{font:{size:10}, callback:v=>v>=10000?Math.round(v/1000)+'千':v>=1000?(v/1000).toFixed(1)+'千':v},
+           grid:{color:'rgba(0,0,0,0.04)'}},
+        y2:{position:'right', ticks:{font:{size:10}, callback:v=>v>=1000?Math.round(v/100)/10+'千':v},
+            grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ─── Summary ─────────────────────────────────────────────
+function renderSummary(){
+  const sim = simulate();
+  let depletion=null;
+  for(let i=0;i<sim.assets.length;i++) if(sim.assets[i]<0){depletion=sim.ages[i];break;}
+  const peak = Math.max(...sim.assets);
+  const peakAge = sim.ages[sim.assets.indexOf(peak)];
+  const i65 = 65-S.age;
+  const at65 = i65>=0&&i65<sim.assets.length ? sim.assets[i65] : null;
+  const currBal = (sim.yInc[0]||0)-(sim.yExp[0]||0);
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="s-card ${depletion?'c-red':'c-green'}">
+      <div class="s-label">資産枯渇</div>
+      <div class="s-val">${depletion?depletion+'歳':'問題なし'}</div>
+      <div class="s-sub">${depletion?'要注意':'生涯安心'}</div>
+    </div>
+    <div class="s-card c-blue">
+      <div class="s-label">資産ピーク</div>
+      <div class="s-val">${peak.toLocaleString()}</div>
+      <div class="s-sub">${peakAge}歳時点（万円）</div>
+    </div>
+    <div class="s-card c-purple">
+      <div class="s-label">老後資金（65歳）</div>
+      <div class="s-val">${at65!==null?at65.toLocaleString():'—'}</div>
+      <div class="s-sub">万円</div>
+    </div>
+    <div class="s-card ${currBal>=0?'c-green':'c-red'}">
+      <div class="s-label">年間収支（現在）</div>
+      <div class="s-val">${currBal>=0?'+':''}${currBal.toLocaleString()}</div>
+      <div class="s-sub">万円/年</div>
+    </div>`;
+}
+
+// ─── Timeline ────────────────────────────────────────────
+function renderTimeline(){
+  const el = document.getElementById('timeline');
+  const evs = [...S.events].sort((a,b)=>a.age-b.age);
+  if(!evs.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📅</div><p>イベントを追加してください</p></div>';
+    return;
+  }
+  el.innerHTML = evs.map(e=>`
+    <div class="ev-row">
+      <span class="ev-age">${e.age}歳</span>
+      <span class="ev-icon">${e.icon||'🎯'}</span>
+      <span class="ev-name">${e.name}</span>
+      <span class="ev-amt ${e.type==='income'?'in':'out'}">${e.type==='income'?'+':'-'}${e.amount.toLocaleString()}万</span>
+    </div>`).join('');
+}
+
+function refreshAll(){
+  renderSummary(); renderChart(); renderTimeline(); updateCounts();
+}
+
+// ─── Tabs ─────────────────────────────────────────────────
+function goTab(t){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='settings') updateSettingsDisp();
+}
+
+// ─── Sheet helpers ────────────────────────────────────────
+function openSheet(html){
+  document.getElementById('shBody').innerHTML=html;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('bsheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('bsheet').classList.remove('show');
+}
+
+// ─── Add Menu ─────────────────────────────────────────────
+function openAdd(){
+  openSheet(`
+    <div class="sh-title">何を追加しますか？</div>
+    <div class="type-btns">
+      <button class="type-btn t-inc" onclick="openIncForm()">
+        <span class="tb-icon">💰</span>
+        <div><div>収　入</div><div class="tb-sub">給与・年金・副業など</div></div>
+      </button>
+      <button class="type-btn t-exp" onclick="openExpForm()">
+        <span class="tb-icon">💸</span>
+        <div><div>支　出</div><div class="tb-sub">生活費・家賃・保険など</div></div>
+      </button>
+      <button class="type-btn t-ev" onclick="openEventSheet()">
+        <span class="tb-icon">🎯</span>
+        <div><div>ライフイベント</div><div class="tb-sub">結婚・住宅・教育費など</div></div>
+      </button>
+    </div>`);
+}
+
+// ─── Stepper helper ──────────────────────────────────────
+function spHTML(id,val,min,max){
+  return `<div class="stepper">
+    <button class="sp-btn" ontouchstart="" onclick="spChg('${id}',-1,${min},${max})">−</button>
+    <span class="sp-val" id="${id}" data-v="${val}">${val}</span>
+    <button class="sp-btn" ontouchstart="" onclick="spChg('${id}',1,${min},${max})">＋</button>
+  </div>`;
+}
+function spChg(id,d,mn,mx){
+  const el=document.getElementById(id);
+  let v=+el.dataset.v+d; v=Math.max(mn,Math.min(mx,v));
+  el.dataset.v=v; el.textContent=v;
+}
+function spv(id){return parseInt(document.getElementById(id).dataset.v);}
+
+// ─── Income Form ──────────────────────────────────────────
+function openIncForm(def={}){
+  const d={name:'給与',amount:30,unit:'month',startAge:S.age,endAge:60,rate:0,...def};
+  openSheet(`
+    <div class="sh-title">収入を追加</div>
+    <div class="fg"><label class="fl">名称</label>
+      <input class="fi" id="fn" value="${d.name}" placeholder="例：給与、副業"></div>
+    <div class="frow">
+      <div class="fg" style="flex:2"><label class="fl">金額（万円）</label>
+        <input class="fi" id="fa" type="number" value="${d.amount}" inputmode="numeric"></div>
+      <div class="fg"><label class="fl">単位</label>
+        <div class="utgl">
+          <button class="uopt ${d.unit==='month'?'active':''}" id="um" onclick="setU('month')">月</button>
+          <button class="uopt ${d.unit==='year'?'active':''}" id="uy" onclick="setU('year')">年</button>
+        </div></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
+      <div class="fg"><label class="fl">終了年齢</label>${spHTML('fe',d.endAge,0,100)}</div>
+    </div>
+    <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
+    <div class="adv-body" id="advBody">
+      <div class="fg"><label class="fl">年率増減 (%)</label>
+        <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal" placeholder="例：1.0"></div>
+    </div>
+    <button class="sub-btn" onclick="addIncome()">追　加</button>
+    <div style="height:24px"></div>`);
+}
+function setU(u){
+  document.getElementById('um').classList.toggle('active',u==='month');
+  document.getElementById('uy').classList.toggle('active',u==='year');
+}
+function togAdv(){
+  const b=document.getElementById('advBody');
+  const t=document.querySelector('.adv-tog');
+  b.classList.toggle('open');
+  t.textContent=(b.classList.contains('open')?'▾':'▸')+' 詳細設定（増減率）';
+}
+function addIncome(){
+  const name=document.getElementById('fn').value.trim();
+  const amount=parseFloat(document.getElementById('fa').value)||0;
+  if(!name||amount<=0){alert('名称と金額を入力してください');return;}
+  const unit=document.getElementById('um').classList.contains('active')?'month':'year';
+  const rate=parseFloat(document.getElementById('fr')?.value)||0;
+  S.incomes.push({id:Date.now(),name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate});
+  save(); closeSheet(); refreshAll();
+}
+
+// ─── Expense Form ─────────────────────────────────────────
+function openExpForm(def={}){
+  const d={name:'生活費',amount:20,unit:'month',startAge:S.age,endAge:S.endAge,rate:0,...def};
+  openSheet(`
+    <div class="sh-title">支出を追加</div>
+    <div class="fg"><label class="fl">名称</label>
+      <input class="fi" id="fn" value="${d.name}" placeholder="例：生活費、家賃"></div>
+    <div class="frow">
+      <div class="fg" style="flex:2"><label class="fl">金額（万円）</label>
+        <input class="fi" id="fa" type="number" value="${d.amount}" inputmode="numeric"></div>
+      <div class="fg"><label class="fl">単位</label>
+        <div class="utgl">
+          <button class="uopt ${d.unit==='month'?'active':''}" id="um" onclick="setU('month')">月</button>
+          <button class="uopt ${d.unit==='year'?'active':''}" id="uy" onclick="setU('year')">年</button>
+        </div></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
+      <div class="fg"><label class="fl">終了年齢</label>${spHTML('fe',d.endAge,0,100)}</div>
+    </div>
+    <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
+    <div class="adv-body" id="advBody">
+      <div class="fg"><label class="fl">年率増減 (%)</label>
+        <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal"></div>
+    </div>
+    <button class="sub-btn" style="background:#ff3b30" onclick="addExpense()">追　加</button>
+    <div style="height:24px"></div>`);
+}
+function addExpense(){
+  const name=document.getElementById('fn').value.trim();
+  const amount=parseFloat(document.getElementById('fa').value)||0;
+  if(!name||amount<=0){alert('名称と金額を入力してください');return;}
+  const unit=document.getElementById('um').classList.contains('active')?'month':'year';
+  const rate=parseFloat(document.getElementById('fr')?.value)||0;
+  S.expenses.push({id:Date.now(),name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate});
+  save(); closeSheet(); refreshAll();
+}
+
+// ─── Quick Events ──────────────────────────────────────────
+const QE=[
+  {cat:'家族・ライフステージ',items:[
+    {name:'結婚',icon:'💍',amount:300,duration:1,type:'expense'},
+    {name:'出産',icon:'👶',amount:50,duration:1,type:'expense'},
+    {name:'離婚',icon:'💔',amount:200,duration:1,type:'expense'},
+    {name:'介護開始',icon:'🏥',amount:60,duration:10,type:'expense'},
+  ]},
+  {cat:'住居',items:[
+    {name:'持ち家購入（頭金）',icon:'🏠',amount:500,duration:1,type:'expense'},
+    {name:'リフォーム',icon:'🔧',amount:200,duration:1,type:'expense'},
+  ]},
+  {cat:'教育費',items:[
+    {name:'幼稚園',icon:'🎒',amount:15,duration:3,type:'expense'},
+    {name:'小学校',icon:'📚',amount:10,duration:6,type:'expense'},
+    {name:'中学校',icon:'📐',amount:15,duration:3,type:'expense'},
+    {name:'高校',icon:'🏫',amount:20,duration:3,type:'expense'},
+    {name:'大学',icon:'🎓',amount:100,duration:4,type:'expense'},
+  ]},
+  {cat:'キャリア・収入',items:[
+    {name:'転職（収入増）',icon:'📈',amount:60,duration:1,type:'income'},
+    {name:'定年退職（退職金）',icon:'👔',amount:1000,duration:1,type:'income'},
+    {name:'年金受給開始',icon:'🏛',amount:180,duration:25,type:'income'},
+  ]},
+  {cat:'その他',items:[
+    {name:'車購入',icon:'🚗',amount:300,duration:1,type:'expense'},
+    {name:'海外旅行',icon:'✈️',amount:30,duration:1,type:'expense'},
+    {name:'大病・入院',icon:'💊',amount:100,duration:1,type:'expense'},
+    {name:'相続・贈与',icon:'🎁',amount:500,duration:1,type:'income'},
+  ]},
+];
+
+function openEventSheet(){
+  const html = QE.map(c=>`
+    <div class="ev-cat">${c.cat}</div>
+    <div class="ev-grid">${c.items.map(it=>`
+      <button class="eq-btn" onclick='openConfirm(${JSON.stringify(it)})'>
+        <span class="eq-icon">${it.icon}</span>
+        <span>${it.name}</span>
+      </button>`).join('')}
+    </div>`).join('');
+  openSheet(`<div class="sh-title">ライフイベントを選ぶ</div>${html}<div style="height:24px"></div>`);
+}
+
+function openConfirm(it){
+  const defAge = Math.min(S.age+5, S.endAge);
+  openSheet(`
+    <div class="sh-title">${it.icon} ${it.name}</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">発生年齢</label>${spHTML('ea',defAge,S.age,S.endAge)}</div>
+      <div class="fg"><label class="fl">継続年数</label>${spHTML('ed',it.duration,1,50)}</div>
+    </div>
+    <div class="fg"><label class="fl">金額（万円）</label>
+      <input class="fi" id="eamt" type="number" value="${it.amount}" inputmode="numeric"></div>
+    <div class="conf-card">
+      <div class="conf-row"><span class="conf-k">種別</span>
+        <span class="conf-v" style="color:${it.type==='income'?'#34c759':'#ff3b30'}">${it.type==='income'?'収入':'支出'}</span></div>
+      <div class="conf-row"><span class="conf-k">イベント名</span><span class="conf-v">${it.name}</span></div>
+    </div>
+    <button class="sub-btn" style="background:${it.type==='income'?'#34c759':'#007aff'}"
+      onclick='doAddEvent(${JSON.stringify(it)})'>このまま追加する</button>
+    <div style="height:24px"></div>`);
+}
+
+function doAddEvent(it){
+  const amount=parseFloat(document.getElementById('eamt').value)||0;
+  S.events.push({id:Date.now(),name:it.name,icon:it.icon,age:spv('ea'),duration:spv('ed'),amount,type:it.type});
+  save(); closeSheet(); goTab('graph'); refreshAll();
+}
+
+// ─── Settings ─────────────────────────────────────────────
+function updateSettingsDisp(){
+  document.getElementById('d-age').textContent  = S.age+'歳';
+  document.getElementById('d-savings').textContent = S.savings.toLocaleString()+'万円';
+  document.getElementById('d-endAge').textContent = S.endAge+'歳';
+  updateCounts();
+}
+function updateCounts(){
+  const ic=document.getElementById('d-inc-count');
+  const ec=document.getElementById('d-exp-count');
+  const evc=document.getElementById('d-ev-count');
+  if(ic) ic.textContent=S.incomes.length+'件';
+  if(ec) ec.textContent=S.expenses.length+'件';
+  if(evc) evc.textContent=S.events.length+'件';
+}
+function editBasic(f){
+  const labels={age:'現在の年齢（歳）',savings:'現在の貯蓄（万円）',endAge:'終了年齢（歳）'};
+  openSheet(`
+    <div class="sh-title">${labels[f]}</div>
+    <div class="fg"><label class="fl">${labels[f]}</label>
+      <input class="fi" id="bv" type="number" value="${S[f]}" inputmode="numeric"></div>
+    <button class="sub-btn" onclick="saveBasic('${f}')">保　存</button>
+    <div style="height:24px"></div>`);
+}
+function saveBasic(f){
+  const v=parseInt(document.getElementById('bv').value);
+  if(isNaN(v)||v<0) return;
+  S[f]=v; save(); updateSettingsDisp(); closeSheet(); refreshAll();
+}
+
+function showList(type){
+  const items=type==='income'?S.incomes:type==='expense'?S.expenses:S.events;
+  const title={income:'収入一覧',expense:'支出一覧',event:'イベント一覧'}[type];
+  const rows=items.length===0
+    ?'<div class="empty"><div class="empty-ico">📋</div><p>登録なし</p></div>'
+    :items.map(it=>{
+        const isIn = type==='income'||(type==='event'&&it.type==='income');
+        const detail = type==='event'?`${it.age}歳・${it.duration||1}年間`:`${it.startAge}歳〜${it.endAge}歳`;
+        const unitStr = type!=='event'?(it.unit==='month'?'/月':'/年'):'';
+        return `<div class="ent-item">
+          <span class="ent-ico">${it.icon||(type==='income'?'💰':type==='expense'?'💸':'🎯')}</span>
+          <div class="ent-info">
+            <div class="ent-name">${it.name}</div>
+            <div class="ent-detail">${detail}</div>
+          </div>
+          <span class="ent-amt ${isIn?'inc':'exp'}">${isIn?'+':'-'}${it.amount.toLocaleString()}万${unitStr}</span>
+          <button class="del-btn" onclick="delEntry('${type}',${it.id})">削除</button>
+        </div>`;
+      }).join('');
+  openSheet(`
+    <div class="sh-title">${title}</div>
+    <div style="background:white;margin:8px 12px;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08)">${rows}</div>
+    <div style="height:24px"></div>`);
+}
+
+function delEntry(type,id){
+  if(!confirm('削除しますか？')) return;
+  if(type==='income')  S.incomes  = S.incomes.filter(x=>x.id!==id);
+  if(type==='expense') S.expenses = S.expenses.filter(x=>x.id!==id);
+  if(type==='event')   S.events   = S.events.filter(x=>x.id!==id);
+  save(); closeSheet(); refreshAll();
+}
+
+function exportJSON(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));
+  a.download='lifeplan.json'; a.click();
+}
+function resetAll(){
+  if(!confirm('すべてリセットしますか？')) return;
+  S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[]};
+  save(); updateSettingsDisp(); refreshAll();
+}
+
+// ─── Sample Data ──────────────────────────────────────────
+if(!S.incomes.length && !S.expenses.length && !S.events.length){
+  S.incomes=[
+    {id:1,name:'給与',amount:30,unit:'month',startAge:30,endAge:60,rate:1},
+    {id:2,name:'年金',amount:15,unit:'month',startAge:65,endAge:90,rate:0},
+  ];
+  S.expenses=[
+    {id:3,name:'生活費',amount:20,unit:'month',startAge:30,endAge:90,rate:0},
+    {id:4,name:'家賃',amount:8,unit:'month',startAge:30,endAge:40,rate:0},
+  ];
+  S.events=[
+    {id:5,name:'結婚',icon:'💍',age:33,duration:1,amount:300,type:'expense'},
+    {id:6,name:'持ち家購入',icon:'🏠',age:40,duration:1,amount:500,type:'expense'},
+    {id:7,name:'子ども 大学',icon:'🎓',age:48,duration:4,amount:100,type:'expense'},
+    {id:8,name:'定年退職（退職金）',icon:'👔',age:60,duration:1,amount:1000,type:'income'},
+  ];
+  save();
+}
+
+// ─── Boot ─────────────────────────────────────────────────
+refreshAll();
+updateSettingsDisp();
+</script>
+</body>
+</html>
