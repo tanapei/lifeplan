@@ -443,9 +443,15 @@ const markerPlugin = {
 };
 
 // ─── Chart ───────────────────────────────────────────────
-let chart=null;
+let chart=null, chartDirty=false;
 
 function renderChart(){
+  // グラフページが非表示なら描画せずフラグだけ立てる
+  if(!document.getElementById('page-graph').classList.contains('active')){
+    chartDirty=true;
+    return;
+  }
+  chartDirty=false;
   const sim = simulate();
   let idxs = sim.ages.map((_,i)=>i);
 
@@ -454,17 +460,8 @@ function renderChart(){
   const incomes  = idxs.map(i=>sim.yInc[i]);
   const expenses = idxs.map(i=>sim.yExp[i]);
 
-  // データ更新のみ（キャンバスが非表示でも壊れない）
-  if(chart){
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = assets;
-    chart.data.datasets[1].data = incomes;
-    chart.data.datasets[2].data = expenses;
-    chart.update('none');
-    return;
-  }
-
   const ctx = document.getElementById('mainChart').getContext('2d');
+  if(chart) chart.destroy();
   chart = new Chart(ctx, {
     plugins:[markerPlugin],
     data:{
@@ -748,6 +745,7 @@ function goTab(t){
   document.getElementById('page-'+t).classList.add('active');
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='settings') updateSettingsDisp();
+  if(t==='graph' && chartDirty) renderChart();
 }
 
 // ─── Sheet helpers ────────────────────────────────────────
