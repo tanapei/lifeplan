@@ -63,9 +63,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .slider-end:last-child{text-align:right}
 input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 
-/* ── Timeline ── */
-.timeline-wrap{background:white;margin:0 0 16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08)}
-.ev-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px}
+/* ── All-items list ── */
+.all-sec-hd{font-size:11px;font-weight:600;color:#8e8e93;padding:10px 16px 4px;background:#f2f2f7;letter-spacing:.5px;text-transform:uppercase}
+.ev-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px;cursor:pointer;user-select:none}
+.ev-row:active{background:#f2f2f7}
 .ev-row:last-child{border-bottom:none}
 .ev-age{font-size:12px;color:#8e8e93;min-width:32px;font-variant-numeric:tabular-nums}
 .ev-icon{font-size:18px}
@@ -253,7 +254,7 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
       </div>
       <!-- Sub-tab bar -->
       <div class="sub-tab-bar">
-        <button class="stab active" id="stab-events" onclick="setSubTab('events')">イベント一覧</button>
+        <button class="stab active" id="stab-events" onclick="setSubTab('events')">一　覧</button>
         <button class="stab" id="stab-cf" onclick="setSubTab('cf')">CF</button>
         <button class="stab" id="stab-bs" onclick="setSubTab('bs')">BS</button>
       </div>
@@ -397,6 +398,40 @@ function simulate() {
   return {ages, assets, yInc, yExp};
 }
 
+// ─── 案3: グラフマーカープラグイン ───────────────────────────
+const markerPlugin = {
+  id:'eventMarkers',
+  afterDraw(chart){
+    if(!S.events.length) return;
+    const ctx=chart.ctx, xsc=chart.scales.x;
+    const top=chart.chartArea.top, bot=chart.chartArea.bottom;
+    // group by age label
+    const byLabel={};
+    S.events.forEach(ev=>{
+      const lbl=ev.age+'歳';
+      const idx=chart.data.labels.indexOf(lbl);
+      if(idx<0) return;
+      if(!byLabel[idx]) byLabel[idx]=[];
+      byLabel[idx].push(ev);
+    });
+    ctx.save();
+    Object.entries(byLabel).forEach(([idx,evs])=>{
+      const x=xsc.getPixelForIndex(+idx);
+      // dashed vertical line
+      ctx.strokeStyle='rgba(0,122,255,0.18)';
+      ctx.lineWidth=1; ctx.setLineDash([3,4]);
+      ctx.beginPath(); ctx.moveTo(x,top); ctx.lineTo(x,bot); ctx.stroke();
+      ctx.setLineDash([]);
+      // emoji markers above chart area
+      ctx.font='13px serif'; ctx.textAlign='center';
+      evs.forEach((ev,i)=>{
+        ctx.fillText(ev.icon||'🎯', x, top-6-(i*16));
+      });
+    });
+    ctx.restore();
+  }
+};
+
 // ─── Chart ───────────────────────────────────────────────
 let chart=null;
 
@@ -415,6 +450,7 @@ function renderChart(){
   const ctx = document.getElementById('mainChart').getContext('2d');
   if(chart) chart.destroy();
   chart = new Chart(ctx, {
+    plugins:[markerPlugin],
     data:{
       labels,
       datasets:[
@@ -429,6 +465,17 @@ function renderChart(){
     },
     options:{
       responsive:true, maintainAspectRatio:true,
+      layout:{padding:{top:28}},
+      onClick(event, elements, ch){
+        const pos=Chart.helpers.getRelativePosition(event,ch);
+        const idx=Math.round(ch.scales.x.getValueForPixel(pos.x));
+        if(idx<0||idx>=ch.data.labels.length) return;
+        const age=parseInt(ch.data.labels[idx]);
+        const evs=S.events.filter(ev=>ev.age===age);
+        if(!evs.length) return;
+        if(evs.length===1) openEntryAction('event',evs[0].id);
+        else openMultiEventPicker(evs);
+      },
       interaction:{mode:'index', intersect:false},
       plugins:{
         legend:{display:false},
@@ -446,21 +493,50 @@ function renderChart(){
 }
 
 
-// ─── Timeline ────────────────────────────────────────────
+// ─── 案1: 全件一覧（タップ編集）─────────────────────────────
 function renderTimeline(){
   const el = document.getElementById('timeline');
-  const evs = [...S.events].sort((a,b)=>a.age-b.age);
-  if(!evs.length){
-    el.innerHTML='<div class="empty"><div class="empty-ico">📅</div><p>イベントを追加してください</p></div>';
+  if(!S.incomes.length && !S.expenses.length && !S.events.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📋</div><p>＋ボタンから追加してください</p></div>';
     return;
   }
-  el.innerHTML = evs.map(e=>`
-    <div class="ev-row">
-      <span class="ev-age">${e.age}歳</span>
-      <span class="ev-icon">${e.icon||'🎯'}</span>
-      <span class="ev-name">${e.name}</span>
-      <span class="ev-amt ${e.type==='income'?'in':'out'}">${e.type==='income'?'+':'-'}${e.amount.toLocaleString()}万</span>
-    </div>`).join('');
+  const arrow = '<span style="color:#c7c7cc;font-size:16px;flex-shrink:0">›</span>';
+  const incHTML = S.incomes.length ? `
+    <div class="all-sec-hd">収入</div>
+    ${S.incomes.map(it=>`
+      <div class="ev-row" onclick="editEntry('income',${it.id})">
+        <span class="ev-icon">💰</span>
+        <div style="flex:1;min-width:0">
+          <div class="ev-name">${it.name}</div>
+          <div class="ev-age">${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}</div>
+        </div>
+        <span class="ev-amt in" style="flex-shrink:0">+${it.amount.toLocaleString()}万${it.unit==='month'?'/月':'/年'}</span>
+        ${arrow}
+      </div>`).join('')}` : '';
+  const expHTML = S.expenses.length ? `
+    <div class="all-sec-hd">支出</div>
+    ${S.expenses.map(it=>`
+      <div class="ev-row" onclick="editEntry('expense',${it.id})">
+        <span class="ev-icon">💸</span>
+        <div style="flex:1;min-width:0">
+          <div class="ev-name">${it.name}</div>
+          <div class="ev-age">${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}</div>
+        </div>
+        <span class="ev-amt out" style="flex-shrink:0">-${it.amount.toLocaleString()}万${it.unit==='month'?'/月':'/年'}</span>
+        ${arrow}
+      </div>`).join('')}` : '';
+  const evs = [...S.events].sort((a,b)=>a.age-b.age);
+  const evHTML = evs.length ? `
+    <div class="all-sec-hd">イベント</div>
+    ${evs.map(e=>`
+      <div class="ev-row" onclick="editEntry('event',${e.id})">
+        <span class="ev-age">${e.age}歳</span>
+        <span class="ev-icon">${e.icon||'🎯'}</span>
+        <div style="flex:1;min-width:0"><div class="ev-name">${e.name}</div></div>
+        <span class="ev-amt ${e.type==='income'?'in':'out'}" style="flex-shrink:0">${e.type==='income'?'+':'-'}${e.amount.toLocaleString()}万</span>
+        ${arrow}
+      </div>`).join('')}` : '';
+  el.innerHTML = `<div style="background:white">${incHTML}${expHTML}${evHTML}</div>`;
 }
 
 function refreshAll(){
@@ -501,21 +577,21 @@ function setSubTab(t){
 function updateCFAge(v){ cfAge=v; document.getElementById('cf-age-disp').textContent=v+'歳'; renderCF(v); }
 function updateBSAge(v){ bsAge=v; document.getElementById('bs-age-disp').textContent=v+'歳'; renderBS(v); }
 
-// ─── CF Render ────────────────────────────────────────────
+// ─── CF Render（案2：行タップで編集）─────────────────────────
 function renderCF(age){
   const incRows = S.incomes.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
     const mon=it.unit==='month'?it.amount:it.amount/12;
     const r=1+(parseFloat(it.rate)||0)/100;
-    return {icon:'💰',label:it.name,sub:'定期収入',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:true};
+    return {id:it.id,type:'income',icon:'💰',label:it.name,sub:'定期収入',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:true};
   });
   const expRows = S.expenses.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
     const mon=it.unit==='month'?it.amount:it.amount/12;
     const r=1+(parseFloat(it.rate)||0)/100;
-    return {icon:'💸',label:it.name,sub:'定期支出',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:false};
+    return {id:it.id,type:'expense',icon:'💸',label:it.name,sub:'定期支出',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:false};
   });
   const evRows = S.events.filter(ev=>{
     for(let d=0;d<(ev.duration||1);d++) if(age===ev.age+d) return true; return false;
-  }).map(ev=>({icon:ev.icon||'🎯',label:ev.name,sub:'イベント',amt:ev.amount,pos:ev.type==='income'}));
+  }).map(ev=>({id:ev.id,type:'event',icon:ev.icon||'🎯',label:ev.name,sub:'イベント',amt:ev.amount,pos:ev.type==='income'}));
 
   const allInc=[...incRows,...evRows.filter(r=>r.pos)];
   const allExp=[...expRows,...evRows.filter(r=>!r.pos)];
@@ -524,10 +600,11 @@ function renderCF(age){
   const net=totalInc-totalExp;
 
   const rowHTML=rows=>rows.map(r=>`
-    <div class="fin-row">
+    <div class="fin-row" style="cursor:pointer" onclick="editEntry('${r.type}',${r.id})">
       <span class="fin-ico">${r.icon}</span>
       <span class="fin-lbl">${r.label}<span class="fin-sub">${r.sub}</span></span>
       <span class="fin-amt ${r.pos?'pos':'neg'}">${r.pos?'+':'-'}${r.amt.toLocaleString()}万</span>
+      <span style="color:#c7c7cc;font-size:14px;margin-left:4px">›</span>
     </div>`).join('');
 
   document.getElementById('cf-content').innerHTML=`
@@ -555,6 +632,21 @@ function renderCF(age){
     <div class="acc-bd" id="acce">
       ${allExp.length?rowHTML(allExp):'<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
     </div>`;
+}
+
+function openMultiEventPicker(evs){
+  openSheet(`
+    <div class="sh-title">イベントを選択</div>
+    <div style="background:white;margin:8px 12px;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08)">
+      ${evs.map(ev=>`
+        <div class="ev-row" onclick="openEntryAction('event',${ev.id})">
+          <span class="ev-icon">${ev.icon||'🎯'}</span>
+          <span class="ev-name" style="flex:1">${ev.name}</span>
+          <span class="ev-amt ${ev.type==='income'?'in':'out'}">${ev.type==='income'?'+':'-'}${ev.amount.toLocaleString()}万</span>
+          <span style="color:#c7c7cc;font-size:16px;margin-left:4px">›</span>
+        </div>`).join('')}
+    </div>
+    <div style="height:24px"></div>`);
 }
 
 function togAcc(id){
