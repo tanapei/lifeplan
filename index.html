@@ -446,23 +446,29 @@ const markerPlugin = {
 let chart=null, chartDirty=false;
 
 function renderChart(){
-  // グラフページが非表示なら描画せずフラグだけ立てる
   if(!document.getElementById('page-graph').classList.contains('active')){
     chartDirty=true;
     return;
   }
   chartDirty=false;
-  const sim = simulate();
-  let idxs = sim.ages.map((_,i)=>i);
+  const sim=simulate();
+  const labels=sim.ages.map(a=>a+'歳');
+  const assets=sim.assets;
+  const incomes=sim.yInc;
+  const expenses=sim.yExp;
 
-  const labels   = idxs.map(i=>sim.ages[i]+'歳');
-  const assets   = idxs.map(i=>sim.assets[i]);
-  const incomes  = idxs.map(i=>sim.yInc[i]);
-  const expenses = idxs.map(i=>sim.yExp[i]);
+  // チャートが既にある場合はデータだけ差し替え（キャンバスを壊さない）
+  if(chart){
+    chart.data.labels=labels;
+    chart.data.datasets[0].data=assets;
+    chart.data.datasets[1].data=incomes;
+    chart.data.datasets[2].data=expenses;
+    chart.update();
+    return;
+  }
 
-  const ctx = document.getElementById('mainChart').getContext('2d');
-  if(chart) chart.destroy();
-  chart = new Chart(ctx, {
+  const ctx=document.getElementById('mainChart').getContext('2d');
+  chart=new Chart(ctx,{
     plugins:[markerPlugin],
     data:{
       labels,
@@ -492,7 +498,7 @@ function renderChart(){
         });
         if(!evs.length) return;
         if(evs.length===1){
-          if(evs[0]._type==='child') openEntryAction('child',evs[0]._childId);
+          if(evs[0]._type==='child') editChild(evs[0]._childId);
           else openEntryAction('event',evs[0].id);
         } else openMultiEventPicker(evs);
       },
@@ -516,7 +522,7 @@ function renderChart(){
 // ─── 案1: 全件一覧（タップ編集）─────────────────────────────
 function renderTimeline(){
   const el = document.getElementById('timeline');
-  if(!S.incomes.length && !S.expenses.length && !S.events.length){
+  if(!S.incomes.length && !S.expenses.length && !S.events.length && !S.children.length){
     el.innerHTML='<div class="empty"><div class="empty-ico">📋</div><p>＋ボタンから追加してください</p></div>';
     return;
   }
@@ -562,7 +568,7 @@ function renderTimeline(){
       const total=childEvents(child).reduce((s,e)=>s+e.amount*(e.duration||1),0);
       const lastSchool=Object.entries(SCHOOL_DEF).filter(([k])=>child[k]!=='none').pop();
       const lastLabel=lastSchool?lastSchool[1].label:'';
-      return `<div class="ev-row" onclick="openEntryAction('child',${child.id})">
+      return `<div class="ev-row" onclick="editChild(${child.id})">
         <span class="ev-icon">👶</span>
         <div style="flex:1;min-width:0">
           <div class="ev-name">${child.name}</div>
@@ -644,7 +650,7 @@ function renderCF(age){
   const net=totalInc-totalExp;
 
   const rowHTML=rows=>rows.map(r=>`
-    <div class="fin-row" style="cursor:pointer" onclick="${r.type==='child'?`openEntryAction('child',${r.id})`:`editEntry('${r.type}',${r.id})`}">
+    <div class="fin-row" style="cursor:pointer" onclick="${r.type==='child'?`editChild(${r.id})`:`editEntry('${r.type}',${r.id})`}">
       <span class="fin-ico">${r.icon}</span>
       <span class="fin-lbl">${r.label}<span class="fin-sub">${r.sub}</span></span>
       <span class="fin-amt ${r.pos?'pos':'neg'}">${r.pos?'+':'-'}${r.amt.toLocaleString()}万</span>
@@ -683,7 +689,7 @@ function openMultiEventPicker(evs){
     <div class="sh-title">イベントを選択</div>
     <div style="background:white;margin:8px 12px;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08)">
       ${evs.map(ev=>`
-        <div class="ev-row" onclick="${ev._type==='child'?`openEntryAction('child',${ev._childId})`:ev._type==='event'?`openEntryAction('event',${ev.id})`:`openEntryAction('event',${ev.id})`}">
+        <div class="ev-row" onclick="${ev._type==='child'?`closeSheet();editChild(${ev._childId})`:ev._type==='event'?`openEntryAction('event',${ev.id})`:`openEntryAction('event',${ev.id})`}">
           <span class="ev-icon">${ev.icon||'🎯'}</span>
           <span class="ev-name" style="flex:1">${ev._type==='child'?`${ev._childName} ${ev.name}`:ev.name}</span>
           <span class="ev-amt out">-${ev.amount.toLocaleString()}万</span>
@@ -1064,7 +1070,12 @@ function renderBirthSheet(){
     <div class="adv-body" id="advBody">
       <div class="sch-box" style="margin-top:4px">${advRows||'<div style="padding:12px 14px;color:#8e8e93;font-size:14px">選択なし</div>'}</div>
     </div>
-    <button class="sub-btn" onclick="addBirthEvents()">${editingId!=null?'更　新':'追　加'}</button>
+    ${editingId!=null
+      ?`<div style="display:flex;gap:10px;padding:0 20px 12px">
+          <button class="sub-btn" style="flex:1;width:auto;margin:0;background:#ff3b30" onclick="delEntryDirect('child',${editingId})">削　除</button>
+          <button class="sub-btn" style="flex:2;width:auto;margin:0" onclick="addBirthEvents()">更　新</button>
+        </div>`
+      :`<button class="sub-btn" onclick="addBirthEvents()">追　加</button>`}
     <div style="height:24px"></div>`);
 }
 
