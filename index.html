@@ -156,10 +156,41 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 
 /* ── Quick Event Grid ── */
 .ev-cat{font-size:13px;font-weight:600;color:#3c3c43;padding:10px 20px 4px}
-.ev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 20px 8px}
-.eq-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 4px;background:#f2f2f7;border:none;border-radius:12px;cursor:pointer;font-size:11px;color:#3c3c43;font-family:inherit;line-height:1.3;text-align:center;transition:transform .1s}
-.eq-btn:active{transform:scale(.94)}
-.eq-icon{font-size:24px}
+.ev-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:4px 20px 8px}
+.eq-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px;background:#f2f2f7;border:none;border-radius:14px;cursor:pointer;font-size:13px;color:#3c3c43;font-family:inherit;line-height:1.35;text-align:center;transition:transform .1s;width:100%}
+.eq-btn:active{transform:scale(.95)}
+.eq-icon{font-size:28px}
+.eq-hint{font-size:11px;color:#8e8e93}
+
+/* ── CF Summary ── */
+.cf-sumrow{display:flex;gap:8px;padding:12px 16px 0}
+.cf-sumc{flex:1;border-radius:12px;padding:11px 12px;text-align:center}
+.cf-sumc.inc{background:#e8f5e9}
+.cf-sumc.exp{background:#fce4ec}
+.cf-sumc .slbl{font-size:11px;color:#666;margin-bottom:3px}
+.cf-sumc .sval{font-size:17px;font-weight:700}
+.cf-sumc.inc .sval{color:#2e7d32}
+.cf-sumc.exp .sval{color:#c62828}
+
+/* ── Accordion ── */
+.acc-hd{display:flex;align-items:center;padding:13px 16px;background:white;cursor:pointer;border-bottom:1px solid #f2f2f7;user-select:none}
+.acc-title{flex:1;font-size:15px;font-weight:600;color:#3c3c43}
+.acc-badge{font-size:11px;color:white;background:#8e8e93;border-radius:10px;padding:2px 7px;margin-right:8px;flex-shrink:0}
+.acc-chev{font-size:13px;color:#c7c7cc;transition:transform .2s;flex-shrink:0}
+.acc-chev.open{transform:rotate(90deg)}
+.acc-bd{display:none;border-bottom:2px solid #f2f2f7}
+.acc-bd.open{display:block}
+
+/* ── Lifelong toggle ── */
+.lifelong-tog{padding:6px 14px;border:1.5px solid #e5e5ea;border-radius:20px;font-size:13px;font-weight:500;background:white;color:#8e8e93;cursor:pointer;font-family:inherit;white-space:nowrap}
+.lifelong-tog.active{background:#007aff;color:white;border-color:#007aff}
+.end-age-wrap{transition:opacity .2s}
+.end-age-wrap.disabled{opacity:.3;pointer-events:none}
+
+/* ── School row 2-line (optional) ── */
+.sch-row-stack{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px}
+.sch-row-stack .sch-opts{width:100%}
+.sch-row-stack .sch-opt{flex:1;text-align:center}
 
 /* ── Confirm Card ── */
 .conf-card{background:#f2f2f7;border-radius:14px;margin:4px 20px 14px;padding:2px 16px}
@@ -179,8 +210,9 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .set-sec-title{font-size:12px;color:#8e8e93;padding:16px 28px 6px;text-transform:uppercase;letter-spacing:0.4px}
 
 /* ── Entry List ── */
-.ent-item{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px}
+.ent-item{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px;cursor:pointer;user-select:none}
 .ent-item:last-child{border-bottom:none}
+.ent-item:active{background:#f2f2f7}
 .ent-ico{font-size:18px}
 .ent-info{flex:1}
 .ent-name{font-size:16px;font-weight:500}
@@ -188,7 +220,12 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .ent-amt{font-size:15px;font-weight:700}
 .ent-amt.inc{color:#34c759}
 .ent-amt.exp{color:#ff3b30}
-.del-btn{background:#ff3b30;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.ent-arr{color:#c7c7cc;font-size:16px;flex-shrink:0}
+/* アクションシート用 */
+.act-btn{display:flex;align-items:center;gap:14px;padding:16px 20px;border:none;border-bottom:1px solid #f2f2f7;background:white;font-size:17px;cursor:pointer;font-family:inherit;width:100%;text-align:left}
+.act-btn:last-child{border-bottom:none}
+.act-btn:active{background:#f2f2f7}
+.act-btn.danger{color:#ff3b30}
 
 /* ── Empty ── */
 .empty{text-align:center;padding:36px 20px;color:#8e8e93}
@@ -466,100 +503,102 @@ function updateBSAge(v){ bsAge=v; document.getElementById('bs-age-disp').textCon
 
 // ─── CF Render ────────────────────────────────────────────
 function renderCF(age){
-  const sim = simulate();
-  const idx = age - S.age;
-  // Per-item breakdown for this year
   const incRows = S.incomes.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
     const mon=it.unit==='month'?it.amount:it.amount/12;
     const r=1+(parseFloat(it.rate)||0)/100;
-    const amt=Math.round(mon*12*Math.pow(r,age-it.startAge));
-    return {icon:'💰',label:it.name,sub:'',amt,pos:true};
+    return {icon:'💰',label:it.name,sub:'定期収入',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:true};
   });
   const expRows = S.expenses.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
     const mon=it.unit==='month'?it.amount:it.amount/12;
     const r=1+(parseFloat(it.rate)||0)/100;
-    const amt=Math.round(mon*12*Math.pow(r,age-it.startAge));
-    return {icon:'💸',label:it.name,sub:'',amt,pos:false};
+    return {icon:'💸',label:it.name,sub:'定期支出',amt:Math.round(mon*12*Math.pow(r,age-it.startAge)),pos:false};
   });
   const evRows = S.events.filter(ev=>{
     for(let d=0;d<(ev.duration||1);d++) if(age===ev.age+d) return true; return false;
   }).map(ev=>({icon:ev.icon||'🎯',label:ev.name,sub:'イベント',amt:ev.amount,pos:ev.type==='income'}));
 
-  const totalInc = incRows.reduce((s,r)=>s+r.amt,0) + evRows.filter(r=>r.pos).reduce((s,r)=>s+r.amt,0);
-  const totalExp = expRows.reduce((s,r)=>s+r.amt,0) + evRows.filter(r=>!r.pos).reduce((s,r)=>s+r.amt,0);
-  const net = totalInc - totalExp;
+  const allInc=[...incRows,...evRows.filter(r=>r.pos)];
+  const allExp=[...expRows,...evRows.filter(r=>!r.pos)];
+  const totalInc=allInc.reduce((s,r)=>s+r.amt,0);
+  const totalExp=allExp.reduce((s,r)=>s+r.amt,0);
+  const net=totalInc-totalExp;
 
-  const rowHTML = rows => rows.map(r=>`
+  const rowHTML=rows=>rows.map(r=>`
     <div class="fin-row">
       <span class="fin-ico">${r.icon}</span>
-      <span class="fin-lbl">${r.label}${r.sub?`<span class="fin-sub">${r.sub}</span>`:''}</span>
+      <span class="fin-lbl">${r.label}<span class="fin-sub">${r.sub}</span></span>
       <span class="fin-amt ${r.pos?'pos':'neg'}">${r.pos?'+':'-'}${r.amt.toLocaleString()}万</span>
     </div>`).join('');
 
-  const allIncRows = [...incRows, ...evRows.filter(r=>r.pos)];
-  const allExpRows = [...expRows, ...evRows.filter(r=>!r.pos)];
-
-  document.getElementById('cf-content').innerHTML = `
-    <div class="fin-block">
-      <div class="fin-sec">収入</div>
-      ${allIncRows.length ? rowHTML(allIncRows) : '<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
-      <div class="fin-total-row">
-        <span class="fin-total-lbl">収入合計</span>
-        <span class="fin-total-amt pos" style="color:#34c759">+${totalInc.toLocaleString()}万円</span>
-      </div>
+  document.getElementById('cf-content').innerHTML=`
+    <div class="cf-sumrow">
+      <div class="cf-sumc inc"><div class="slbl">収入合計</div><div class="sval">+${totalInc.toLocaleString()}万</div></div>
+      <div class="cf-sumc exp"><div class="slbl">支出合計</div><div class="sval">-${totalExp.toLocaleString()}万</div></div>
     </div>
-    <div class="fin-block">
-      <div class="fin-sec">支出</div>
-      ${allExpRows.length ? rowHTML(allExpRows) : '<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
-      <div class="fin-total-row">
-        <span class="fin-total-lbl">支出合計</span>
-        <span class="fin-total-amt neg" style="color:#ff3b30">-${totalExp.toLocaleString()}万円</span>
-      </div>
-    </div>
-    <div class="fin-net-card">
+    <div class="fin-net-card" style="margin-top:10px">
       <span class="fin-net-lbl">差引き（年間収支）</span>
       <span class="fin-net-amt" style="color:${net>=0?'#34c759':'#ff3b30'}">${net>=0?'+':''}${net.toLocaleString()}万円</span>
+    </div>
+    <div class="acc-hd" onclick="togAcc('acci')">
+      <span class="acc-title">収入の内訳</span>
+      <span class="acc-badge">${allInc.length}件</span>
+      <span class="acc-chev" id="acci-chev">›</span>
+    </div>
+    <div class="acc-bd" id="acci">
+      ${allInc.length?rowHTML(allInc):'<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
+    </div>
+    <div class="acc-hd" onclick="togAcc('acce')">
+      <span class="acc-title">支出の内訳</span>
+      <span class="acc-badge">${allExp.length}件</span>
+      <span class="acc-chev" id="acce-chev">›</span>
+    </div>
+    <div class="acc-bd" id="acce">
+      ${allExp.length?rowHTML(allExp):'<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
     </div>`;
+}
+
+function togAcc(id){
+  const bd=document.getElementById(id);
+  const ch=document.getElementById(id+'-chev');
+  const open=bd.classList.toggle('open');
+  ch.classList.toggle('open',open);
 }
 
 // ─── BS Render ────────────────────────────────────────────
 function renderBS(age){
-  const sim = simulate();
-  const idx = Math.min(age-S.age, sim.assets.length-1);
-  const balance = sim.assets[idx] || 0;
-  // Accumulated income and expense up to this age (for context)
-  const prevBal = idx>0 ? sim.assets[idx-1] : S.savings;
-  const diff = balance - prevBal;
+  const sim=simulate();
+  const idx=Math.min(age-S.age,sim.assets.length-1);
+  const balance=sim.assets[idx]||0;
+  const prevBal=idx>0?sim.assets[idx-1]:S.savings;
+  const diff=balance-prevBal;
 
-  document.getElementById('bs-content').innerHTML = `
-    <div class="fin-block">
-      <div class="fin-sec">資産</div>
-      <div class="fin-row">
-        <span class="fin-ico">🏦</span>
-        <span class="fin-lbl">現預金残高<span class="fin-sub">シミュレーション値</span></span>
-        <span class="fin-amt pos">${balance.toLocaleString()}万円</span>
-      </div>
-      <div class="fin-total-row">
-        <span class="fin-total-lbl">資産合計</span>
-        <span class="fin-total-amt" style="color:#007aff">${balance.toLocaleString()}万円</span>
-      </div>
-    </div>
-    <div class="fin-block">
-      <div class="fin-sec">負債</div>
-      <div class="fin-row">
-        <span class="fin-lbl" style="color:#8e8e93;font-size:13px">※ローン等の入力がある場合ここに表示</span>
-      </div>
-      <div class="fin-total-row">
-        <span class="fin-total-lbl">負債合計</span>
-        <span class="fin-total-amt" style="color:#8e8e93">0万円</span>
-      </div>
-    </div>
-    <div class="fin-net-card">
+  document.getElementById('bs-content').innerHTML=`
+    <div class="fin-net-card" style="margin:12px 16px 0">
       <div>
         <div class="fin-net-lbl">純資産</div>
         <div style="font-size:11px;color:#8e8e93;margin-top:2px">前年比 ${diff>=0?'+':''}${diff.toLocaleString()}万円</div>
       </div>
       <span class="fin-net-amt" style="color:${balance>=0?'#007aff':'#ff3b30'}">${balance.toLocaleString()}万円</span>
+    </div>
+    <div class="acc-hd" style="margin-top:10px" onclick="togAcc('bsas')">
+      <span class="acc-title">資産の内訳</span>
+      <span class="acc-chev" id="bsas-chev">›</span>
+    </div>
+    <div class="acc-bd" id="bsas">
+      <div class="fin-row">
+        <span class="fin-ico">🏦</span>
+        <span class="fin-lbl">現預金残高<span class="fin-sub">シミュレーション値</span></span>
+        <span class="fin-amt pos">${balance.toLocaleString()}万円</span>
+      </div>
+    </div>
+    <div class="acc-hd" onclick="togAcc('bsli')">
+      <span class="acc-title">負債の内訳</span>
+      <span class="acc-chev" id="bsli-chev">›</span>
+    </div>
+    <div class="acc-bd" id="bsli">
+      <div class="fin-row">
+        <span class="fin-lbl" style="color:#8e8e93;font-size:13px">※ローン等を登録すると表示されます</span>
+      </div>
     </div>`;
 }
 
@@ -619,10 +658,43 @@ function spChg(id,d,mn,mx){
 function spv(id){return parseInt(document.getElementById(id).dataset.v);}
 
 // ─── Income Form ──────────────────────────────────────────
-function openIncForm(def={}){
+let editingId=null, editingType=null, isLifelong=false;
+
+function endAgeSection(endAge){
+  const lifelong = endAge==='' || endAge==null;
+  isLifelong = lifelong;
+  const ea = lifelong ? S.endAge : endAge;
+  return `
+    <div class="fg">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label class="fl" style="margin:0">終了年齢</label>
+        <button class="lifelong-tog ${lifelong?'active':''}" id="lifelongBtn" onclick="toggleLifelong()">終身</button>
+      </div>
+      <div class="end-age-wrap ${lifelong?'disabled':''}" id="endAgeWrap">${spHTML('fe',ea,0,100)}</div>
+    </div>`;
+}
+function toggleLifelong(){
+  isLifelong=!isLifelong;
+  document.getElementById('lifelongBtn').classList.toggle('active',isLifelong);
+  document.getElementById('endAgeWrap').classList.toggle('disabled',isLifelong);
+}
+function setU(u){
+  document.getElementById('um').classList.toggle('active',u==='month');
+  document.getElementById('uy').classList.toggle('active',u==='year');
+}
+function togAdv(){
+  const b=document.getElementById('advBody');
+  const t=document.querySelector('.adv-tog');
+  b.classList.toggle('open');
+  t.textContent=(b.classList.contains('open')?'▾':'▸')+' 詳細設定（増減率）';
+}
+
+function openIncForm(def={},editId=null){
+  editingId=editId; editingType='income';
   const d={name:'給与',amount:30,unit:'month',startAge:S.age,endAge:60,rate:0,...def};
+  const isEdit=editId!=null;
   openSheet(`
-    <div class="sh-title">収入を追加</div>
+    <div class="sh-title">${isEdit?'収入を編集':'収入を追加'}</div>
     <div class="fg"><label class="fl">名称</label>
       <input class="fi" id="fn" value="${d.name}" placeholder="例：給与、副業"></div>
     <div class="frow">
@@ -636,25 +708,15 @@ function openIncForm(def={}){
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
-      <div class="fg"><label class="fl">終了年齢</label>${spHTML('fe',d.endAge,0,100)}</div>
+      ${endAgeSection(d.endAge)}
     </div>
     <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
     <div class="adv-body" id="advBody">
       <div class="fg"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal" placeholder="例：1.0"></div>
     </div>
-    <button class="sub-btn" onclick="addIncome()">追　加</button>
+    <button class="sub-btn" onclick="addIncome()">${isEdit?'更　新':'追　加'}</button>
     <div style="height:24px"></div>`);
-}
-function setU(u){
-  document.getElementById('um').classList.toggle('active',u==='month');
-  document.getElementById('uy').classList.toggle('active',u==='year');
-}
-function togAdv(){
-  const b=document.getElementById('advBody');
-  const t=document.querySelector('.adv-tog');
-  b.classList.toggle('open');
-  t.textContent=(b.classList.contains('open')?'▾':'▸')+' 詳細設定（増減率）';
 }
 function addIncome(){
   const name=document.getElementById('fn').value.trim();
@@ -662,15 +724,24 @@ function addIncome(){
   if(!name||amount<=0){alert('名称と金額を入力してください');return;}
   const unit=document.getElementById('um').classList.contains('active')?'month':'year';
   const rate=parseFloat(document.getElementById('fr')?.value)||0;
-  S.incomes.push({id:Date.now(),name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate});
+  const endAge=isLifelong?'':spv('fe');
+  const obj={name,amount,unit,startAge:spv('fs'),endAge,rate};
+  if(editingId){
+    const i=S.incomes.findIndex(x=>x.id===editingId);
+    if(i>=0) S.incomes[i]={...S.incomes[i],...obj};
+    editingId=null;
+  } else {
+    S.incomes.push({id:Date.now(),...obj});
+  }
   save(); closeSheet(); refreshAll();
 }
 
-// ─── Expense Form ─────────────────────────────────────────
-function openExpForm(def={}){
-  const d={name:'生活費',amount:20,unit:'month',startAge:S.age,endAge:S.endAge,rate:0,...def};
+function openExpForm(def={},editId=null){
+  editingId=editId; editingType='expense';
+  const d={name:'生活費',amount:20,unit:'month',startAge:S.age,endAge:'',rate:0,...def};
+  const isEdit=editId!=null;
   openSheet(`
-    <div class="sh-title">支出を追加</div>
+    <div class="sh-title">${isEdit?'支出を編集':'支出を追加'}</div>
     <div class="fg"><label class="fl">名称</label>
       <input class="fi" id="fn" value="${d.name}" placeholder="例：生活費、家賃"></div>
     <div class="frow">
@@ -684,14 +755,14 @@ function openExpForm(def={}){
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
-      <div class="fg"><label class="fl">終了年齢</label>${spHTML('fe',d.endAge,0,100)}</div>
+      ${endAgeSection(d.endAge)}
     </div>
     <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
     <div class="adv-body" id="advBody">
       <div class="fg"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal"></div>
     </div>
-    <button class="sub-btn" style="background:#ff3b30" onclick="addExpense()">追　加</button>
+    <button class="sub-btn" style="background:#ff3b30" onclick="addExpense()">${isEdit?'更　新':'追　加'}</button>
     <div style="height:24px"></div>`);
 }
 function addExpense(){
@@ -700,7 +771,15 @@ function addExpense(){
   if(!name||amount<=0){alert('名称と金額を入力してください');return;}
   const unit=document.getElementById('um').classList.contains('active')?'month':'year';
   const rate=parseFloat(document.getElementById('fr')?.value)||0;
-  S.expenses.push({id:Date.now(),name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate});
+  const endAge=isLifelong?'':spv('fe');
+  const obj={name,amount,unit,startAge:spv('fs'),endAge,rate};
+  if(editingId){
+    const i=S.expenses.findIndex(x=>x.id===editingId);
+    if(i>=0) S.expenses[i]={...S.expenses[i],...obj};
+    editingId=null;
+  } else {
+    S.expenses.push({id:Date.now(),...obj});
+  }
   save(); closeSheet(); refreshAll();
 }
 
@@ -772,15 +851,25 @@ function calcBirthTotal(){
 }
 
 function renderBirthSheet(){
-  const rows = Object.entries(SCHOOL_DEF).map(([k,s])=>`
-    <div class="sch-row">
+  const rows = Object.entries(SCHOOL_DEF).map(([k,s])=>{
+    if(s.optional){
+      return `<div class="sch-row sch-row-stack">
+        <span class="sch-label">${s.icon} ${s.label}</span>
+        <div class="sch-opts">
+          <button class="sch-opt ${BC[k]==='none'?'active':''}" onclick="setBirthOpt('${k}','none')">なし</button>
+          <button class="sch-opt ${BC[k]==='pub'?'active':''}" onclick="setBirthOpt('${k}','pub')">公立</button>
+          <button class="sch-opt ${BC[k]==='priv'?'active':''}" onclick="setBirthOpt('${k}','priv')">私立</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="sch-row">
       <span class="sch-label">${s.icon} ${s.label}</span>
       <div class="sch-opts">
-        ${s.optional?`<button class="sch-opt ${BC[k]==='none'?'active':''}" onclick="setBirthOpt('${k}','none')">なし</button>`:''}
         <button class="sch-opt ${BC[k]==='pub'?'active':''}" onclick="setBirthOpt('${k}','pub')">公立</button>
         <button class="sch-opt ${BC[k]==='priv'?'active':''}" onclick="setBirthOpt('${k}','priv')">私立</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const advRows = Object.entries(SCHOOL_DEF).map(([k,s])=>{
     if(BC[k]==='none') return '';
@@ -906,17 +995,17 @@ function showList(type){
   const rows=items.length===0
     ?'<div class="empty"><div class="empty-ico">📋</div><p>登録なし</p></div>'
     :items.map(it=>{
-        const isIn = type==='income'||(type==='event'&&it.type==='income');
-        const detail = type==='event'?`${it.age}歳・${it.duration||1}年間`:`${it.startAge}歳〜${it.endAge}歳`;
-        const unitStr = type!=='event'?(it.unit==='month'?'/月':'/年'):'';
-        return `<div class="ent-item">
+        const isIn=type==='income'||(type==='event'&&it.type==='income');
+        const detail=type==='event'?`${it.age}歳・${it.duration||1}年間`:`${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}`;
+        const unitStr=type!=='event'?(it.unit==='month'?'/月':'/年'):'';
+        return `<div class="ent-item" onclick="openEntryAction('${type}',${it.id})">
           <span class="ent-ico">${it.icon||(type==='income'?'💰':type==='expense'?'💸':'🎯')}</span>
           <div class="ent-info">
             <div class="ent-name">${it.name}</div>
             <div class="ent-detail">${detail}</div>
           </div>
           <span class="ent-amt ${isIn?'inc':'exp'}">${isIn?'+':'-'}${it.amount.toLocaleString()}万${unitStr}</span>
-          <button class="del-btn" onclick="delEntry('${type}',${it.id})">削除</button>
+          <span class="ent-arr">›</span>
         </div>`;
       }).join('');
   openSheet(`
@@ -925,11 +1014,56 @@ function showList(type){
     <div style="height:24px"></div>`);
 }
 
+function openEntryAction(type,id){
+  const items=type==='income'?S.incomes:type==='expense'?S.expenses:S.events;
+  const it=items.find(x=>x.id===id);
+  if(!it) return;
+  openSheet(`
+    <div class="sh-title">${it.icon||'📋'} ${it.name}</div>
+    <div style="margin:8px 0">
+      <button class="act-btn" onclick="editEntry('${type}',${id})">
+        <span style="font-size:22px">✏️</span> 編　集
+      </button>
+      <button class="act-btn danger" onclick="delEntry('${type}',${id})">
+        <span style="font-size:22px">🗑️</span> 削　除
+      </button>
+    </div>
+    <button class="sub-btn" style="background:#f2f2f7;color:#3c3c43" onclick="showList('${type}')">キャンセル</button>
+    <div style="height:24px"></div>`);
+}
+
+function editEntry(type,id){
+  const items=type==='income'?S.incomes:type==='expense'?S.expenses:S.events;
+  const it=items.find(x=>x.id===id);
+  if(!it) return;
+  if(type==='income')  openIncForm({...it}, id);
+  if(type==='expense') openExpForm({...it}, id);
+  if(type==='event'){
+    openSheet(`
+      <div class="sh-title">${it.icon||'🎯'} ${it.name}</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">発生年齢</label>${spHTML('ea',it.age,S.age,S.endAge)}</div>
+        <div class="fg"><label class="fl">継続年数</label>${spHTML('ed',it.duration||1,1,50)}</div>
+      </div>
+      <div class="fg"><label class="fl">金額（万円）</label>
+        <input class="fi" id="eamt" type="number" value="${it.amount}" inputmode="numeric"></div>
+      <button class="sub-btn" onclick="updateEvent(${id})">更　新</button>
+      <div style="height:24px"></div>`);
+  }
+}
+
+function updateEvent(id){
+  const i=S.events.findIndex(x=>x.id===id);
+  if(i<0) return;
+  S.events[i]={...S.events[i],age:spv('ea'),duration:spv('ed'),amount:parseFloat(document.getElementById('eamt').value)||0};
+  save(); closeSheet(); refreshAll();
+}
+
 function delEntry(type,id){
   if(!confirm('削除しますか？')) return;
-  if(type==='income')  S.incomes  = S.incomes.filter(x=>x.id!==id);
-  if(type==='expense') S.expenses = S.expenses.filter(x=>x.id!==id);
-  if(type==='event')   S.events   = S.events.filter(x=>x.id!==id);
+  if(type==='income')  S.incomes=S.incomes.filter(x=>x.id!==id);
+  if(type==='expense') S.expenses=S.expenses.filter(x=>x.id!==id);
+  if(type==='event')   S.events=S.events.filter(x=>x.id!==id);
   save(); closeSheet(); refreshAll();
 }
 
