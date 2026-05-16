@@ -852,7 +852,12 @@ function openIncForm(def={},editId=null){
       <div class="fg"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal" placeholder="例：1.0"></div>
     </div>
-    <button class="sub-btn" onclick="addIncome()">${isEdit?'更　新':'追　加'}</button>
+    ${isEdit
+      ? `<div style="display:flex;gap:10px;padding:0 20px 12px">
+           <button class="sub-btn" style="flex:1;width:auto;margin:0;background:#ff3b30" onclick="delEntryDirect('income',${editId})">削　除</button>
+           <button class="sub-btn" style="flex:2;width:auto;margin:0" onclick="addIncome()">更　新</button>
+         </div>`
+      : `<button class="sub-btn" onclick="addIncome()">追　加</button>`}
     <div style="height:24px"></div>`);
 }
 function addIncome(){
@@ -899,7 +904,12 @@ function openExpForm(def={},editId=null){
       <div class="fg"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal"></div>
     </div>
-    <button class="sub-btn" style="background:#ff3b30" onclick="addExpense()">${isEdit?'更　新':'追　加'}</button>
+    ${isEdit
+      ? `<div style="display:flex;gap:10px;padding:0 20px 12px">
+           <button class="sub-btn" style="flex:1;width:auto;margin:0;background:#ff3b30" onclick="delEntryDirect('expense',${editId})">削　除</button>
+           <button class="sub-btn" style="flex:2;width:auto;margin:0;background:#ff3b30" onclick="addExpense()">更　新</button>
+         </div>`
+      : `<button class="sub-btn" style="background:#ff3b30" onclick="addExpense()">追　加</button>`}
     <div style="height:24px"></div>`);
 }
 function addExpense(){
@@ -1230,7 +1240,10 @@ function editEntry(type,id){
       </div>
       <div class="fg"><label class="fl">金額（万円）</label>
         <input class="fi" id="eamt" type="number" value="${it.amount}" inputmode="numeric"></div>
-      <button class="sub-btn" onclick="updateEvent(${id})">更　新</button>
+      <div style="display:flex;gap:10px;padding:0 20px 12px">
+        <button class="sub-btn" style="flex:1;width:auto;margin:0;background:#ff3b30" onclick="delEntryDirect('event',${id})">削　除</button>
+        <button class="sub-btn" style="flex:2;width:auto;margin:0" onclick="updateEvent(${id})">更　新</button>
+      </div>
       <div style="height:24px"></div>`);
   }
 }
@@ -1242,13 +1255,19 @@ function updateEvent(id){
   save(); closeSheet(); refreshAll();
 }
 
-function delEntry(type,id){
-  if(!confirm('削除しますか？')) return;
+function _doDelete(type,id){
   if(type==='income')  S.incomes=S.incomes.filter(x=>x.id!==id);
   if(type==='expense') S.expenses=S.expenses.filter(x=>x.id!==id);
   if(type==='event')   S.events=S.events.filter(x=>x.id!==id);
   if(type==='child')   S.children=S.children.filter(x=>x.id!==id);
   save(); closeSheet(); refreshAll();
+}
+// フォーム内の削除ボタン用（明示的タップのため confirm 不要）
+function delEntryDirect(type,id){ _doDelete(type,id); }
+// アクションシートなど既存経路（confirm あり）
+function delEntry(type,id){
+  if(!confirm('削除しますか？')) return;
+  _doDelete(type,id);
 }
 
 function exportJSON(){
