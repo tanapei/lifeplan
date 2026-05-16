@@ -50,6 +50,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 /* ── Section Title ── */
 .sec-title{font-size:12px;font-weight:600;color:#8e8e93;padding:12px 16px 6px;letter-spacing:0.4px;text-transform:uppercase}
 
+/* ── Sub Tabs ── */
+.sub-tab-bar{display:flex;background:white;border-bottom:1px solid #e5e5ea;position:sticky;top:56px;z-index:9}
+.stab{flex:1;padding:10px 4px;border:none;background:transparent;font-size:14px;font-weight:500;color:#8e8e93;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit;transition:color .15s}
+.stab.active{color:#007aff;border-bottom-color:#007aff;font-weight:600}
+
+/* ── Age Slider ── */
+.age-slider-wrap{background:white;padding:12px 16px 10px;border-bottom:1px solid #f2f2f7}
+.age-disp{font-size:26px;font-weight:700;color:#007aff;text-align:center;margin-bottom:6px;letter-spacing:-0.5px}
+.slider-row{display:flex;align-items:center;gap:8px}
+.slider-end{font-size:11px;color:#8e8e93;min-width:28px}
+.slider-end:last-child{text-align:right}
+input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
+
 /* ── Timeline ── */
 .timeline-wrap{background:white;margin:0 0 16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08)}
 .ev-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f7;gap:10px}
@@ -60,6 +73,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .ev-amt{font-size:14px;font-weight:700}
 .ev-amt.out{color:#ff3b30}
 .ev-amt.in{color:#34c759}
+
+/* ── CF / BS ── */
+.fin-block{background:white;margin-bottom:1px}
+.fin-sec{font-size:11px;font-weight:600;color:#8e8e93;padding:10px 16px 4px;letter-spacing:.5px;text-transform:uppercase;background:#f2f2f7}
+.fin-row{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid #f2f2f7}
+.fin-row:last-child{border-bottom:none}
+.fin-ico{font-size:16px;margin-right:10px}
+.fin-lbl{flex:1;font-size:15px;color:#3c3c43}
+.fin-sub{font-size:11px;color:#8e8e93;display:block}
+.fin-amt{font-size:15px;font-weight:600}
+.fin-amt.pos{color:#34c759}
+.fin-amt.neg{color:#ff3b30}
+.fin-total-row{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:white;border-top:2px solid #e5e5ea}
+.fin-total-lbl{font-size:16px;font-weight:700}
+.fin-total-amt{font-size:20px;font-weight:700}
+.fin-net-card{margin:12px 16px;background:#f2f2f7;border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.fin-net-lbl{font-size:14px;color:#3c3c43;font-weight:600}
+.fin-net-amt{font-size:24px;font-weight:700}
 
 /* ── Overlay & Sheet ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -183,8 +214,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
           <span class="legend-item"><span class="legend-dot" style="background:rgba(255,59,48,.7)"></span>年間支出</span>
         </div>
       </div>
-      <div class="sec-title">ライフイベント</div>
-      <div class="timeline-wrap" id="timeline"></div>
+      <!-- Sub-tab bar -->
+      <div class="sub-tab-bar">
+        <button class="stab active" id="stab-events" onclick="setSubTab('events')">イベント一覧</button>
+        <button class="stab" id="stab-cf" onclick="setSubTab('cf')">CF</button>
+        <button class="stab" id="stab-bs" onclick="setSubTab('bs')">BS</button>
+      </div>
+
+      <!-- Events -->
+      <div id="sub-events">
+        <div class="timeline-wrap" id="timeline"></div>
+      </div>
+
+      <!-- CF -->
+      <div id="sub-cf" style="display:none">
+        <div class="age-slider-wrap">
+          <div class="age-disp" id="cf-age-disp">—</div>
+          <div class="slider-row">
+            <span class="slider-end" id="cf-min">—</span>
+            <input type="range" id="cfSlider" oninput="updateCFAge(+this.value)">
+            <span class="slider-end" id="cf-max">—</span>
+          </div>
+        </div>
+        <div id="cf-content"></div>
+      </div>
+
+      <!-- BS -->
+      <div id="sub-bs" style="display:none">
+        <div class="age-slider-wrap">
+          <div class="age-disp" id="bs-age-disp">—</div>
+          <div class="slider-row">
+            <span class="slider-end" id="bs-min">—</span>
+            <input type="range" id="bsSlider" oninput="updateBSAge(+this.value)">
+            <span class="slider-end" id="bs-max">—</span>
+          </div>
+        </div>
+        <div id="bs-content"></div>
+      </div>
     </div>
 
     <!-- ② Add (placeholder) -->
@@ -342,39 +408,6 @@ function renderChart(){
   });
 }
 
-// ─── Summary ─────────────────────────────────────────────
-function renderSummary(){
-  const sim = simulate();
-  let depletion=null;
-  for(let i=0;i<sim.assets.length;i++) if(sim.assets[i]<0){depletion=sim.ages[i];break;}
-  const peak = Math.max(...sim.assets);
-  const peakAge = sim.ages[sim.assets.indexOf(peak)];
-  const i65 = 65-S.age;
-  const at65 = i65>=0&&i65<sim.assets.length ? sim.assets[i65] : null;
-  const currBal = (sim.yInc[0]||0)-(sim.yExp[0]||0);
-
-  document.getElementById('summaryCards').innerHTML = `
-    <div class="s-card ${depletion?'c-red':'c-green'}">
-      <div class="s-label">資産枯渇</div>
-      <div class="s-val">${depletion?depletion+'歳':'問題なし'}</div>
-      <div class="s-sub">${depletion?'要注意':'生涯安心'}</div>
-    </div>
-    <div class="s-card c-blue">
-      <div class="s-label">資産ピーク</div>
-      <div class="s-val">${peak.toLocaleString()}</div>
-      <div class="s-sub">${peakAge}歳時点（万円）</div>
-    </div>
-    <div class="s-card c-purple">
-      <div class="s-label">老後資金（65歳）</div>
-      <div class="s-val">${at65!==null?at65.toLocaleString():'—'}</div>
-      <div class="s-sub">万円</div>
-    </div>
-    <div class="s-card ${currBal>=0?'c-green':'c-red'}">
-      <div class="s-label">年間収支（現在）</div>
-      <div class="s-val">${currBal>=0?'+':''}${currBal.toLocaleString()}</div>
-      <div class="s-sub">万円/年</div>
-    </div>`;
-}
 
 // ─── Timeline ────────────────────────────────────────────
 function renderTimeline(){
@@ -395,6 +428,139 @@ function renderTimeline(){
 
 function refreshAll(){
   renderChart(); renderTimeline(); updateCounts();
+  initSliders();
+  if(currentSubTab==='cf') renderCF(cfAge);
+  if(currentSubTab==='bs') renderBS(bsAge);
+}
+
+// ─── Sub Tabs ─────────────────────────────────────────────
+let currentSubTab = 'events';
+let cfAge = 0, bsAge = 0;
+
+function initSliders(){
+  cfAge = cfAge || S.age; bsAge = bsAge || S.age;
+  ['cf','bs'].forEach(t=>{
+    const sl = document.getElementById(t+'Slider');
+    if(!sl) return;
+    sl.min=S.age; sl.max=S.endAge;
+    sl.value = t==='cf' ? cfAge : bsAge;
+    document.getElementById(t+'-min').textContent = S.age+'歳';
+    document.getElementById(t+'-max').textContent = S.endAge+'歳';
+    document.getElementById(t+'-age-disp').textContent = (t==='cf'?cfAge:bsAge)+'歳';
+  });
+}
+
+function setSubTab(t){
+  currentSubTab = t;
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('stab-'+t).classList.add('active');
+  ['events','cf','bs'].forEach(id=>{
+    document.getElementById('sub-'+id).style.display = id===t?'block':'none';
+  });
+  if(t==='cf'){ initSliders(); renderCF(cfAge); }
+  if(t==='bs'){ initSliders(); renderBS(bsAge); }
+}
+
+function updateCFAge(v){ cfAge=v; document.getElementById('cf-age-disp').textContent=v+'歳'; renderCF(v); }
+function updateBSAge(v){ bsAge=v; document.getElementById('bs-age-disp').textContent=v+'歳'; renderBS(v); }
+
+// ─── CF Render ────────────────────────────────────────────
+function renderCF(age){
+  const sim = simulate();
+  const idx = age - S.age;
+  // Per-item breakdown for this year
+  const incRows = S.incomes.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
+    const mon=it.unit==='month'?it.amount:it.amount/12;
+    const r=1+(parseFloat(it.rate)||0)/100;
+    const amt=Math.round(mon*12*Math.pow(r,age-it.startAge));
+    return {icon:'💰',label:it.name,sub:'',amt,pos:true};
+  });
+  const expRows = S.expenses.filter(it=>age>=it.startAge&&(it.endAge===''||age<=+it.endAge)).map(it=>{
+    const mon=it.unit==='month'?it.amount:it.amount/12;
+    const r=1+(parseFloat(it.rate)||0)/100;
+    const amt=Math.round(mon*12*Math.pow(r,age-it.startAge));
+    return {icon:'💸',label:it.name,sub:'',amt,pos:false};
+  });
+  const evRows = S.events.filter(ev=>{
+    for(let d=0;d<(ev.duration||1);d++) if(age===ev.age+d) return true; return false;
+  }).map(ev=>({icon:ev.icon||'🎯',label:ev.name,sub:'イベント',amt:ev.amount,pos:ev.type==='income'}));
+
+  const totalInc = incRows.reduce((s,r)=>s+r.amt,0) + evRows.filter(r=>r.pos).reduce((s,r)=>s+r.amt,0);
+  const totalExp = expRows.reduce((s,r)=>s+r.amt,0) + evRows.filter(r=>!r.pos).reduce((s,r)=>s+r.amt,0);
+  const net = totalInc - totalExp;
+
+  const rowHTML = rows => rows.map(r=>`
+    <div class="fin-row">
+      <span class="fin-ico">${r.icon}</span>
+      <span class="fin-lbl">${r.label}${r.sub?`<span class="fin-sub">${r.sub}</span>`:''}</span>
+      <span class="fin-amt ${r.pos?'pos':'neg'}">${r.pos?'+':'-'}${r.amt.toLocaleString()}万</span>
+    </div>`).join('');
+
+  const allIncRows = [...incRows, ...evRows.filter(r=>r.pos)];
+  const allExpRows = [...expRows, ...evRows.filter(r=>!r.pos)];
+
+  document.getElementById('cf-content').innerHTML = `
+    <div class="fin-block">
+      <div class="fin-sec">収入</div>
+      ${allIncRows.length ? rowHTML(allIncRows) : '<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
+      <div class="fin-total-row">
+        <span class="fin-total-lbl">収入合計</span>
+        <span class="fin-total-amt pos" style="color:#34c759">+${totalInc.toLocaleString()}万円</span>
+      </div>
+    </div>
+    <div class="fin-block">
+      <div class="fin-sec">支出</div>
+      ${allExpRows.length ? rowHTML(allExpRows) : '<div class="fin-row"><span class="fin-lbl" style="color:#8e8e93">なし</span></div>'}
+      <div class="fin-total-row">
+        <span class="fin-total-lbl">支出合計</span>
+        <span class="fin-total-amt neg" style="color:#ff3b30">-${totalExp.toLocaleString()}万円</span>
+      </div>
+    </div>
+    <div class="fin-net-card">
+      <span class="fin-net-lbl">差引き（年間収支）</span>
+      <span class="fin-net-amt" style="color:${net>=0?'#34c759':'#ff3b30'}">${net>=0?'+':''}${net.toLocaleString()}万円</span>
+    </div>`;
+}
+
+// ─── BS Render ────────────────────────────────────────────
+function renderBS(age){
+  const sim = simulate();
+  const idx = Math.min(age-S.age, sim.assets.length-1);
+  const balance = sim.assets[idx] || 0;
+  // Accumulated income and expense up to this age (for context)
+  const prevBal = idx>0 ? sim.assets[idx-1] : S.savings;
+  const diff = balance - prevBal;
+
+  document.getElementById('bs-content').innerHTML = `
+    <div class="fin-block">
+      <div class="fin-sec">資産</div>
+      <div class="fin-row">
+        <span class="fin-ico">🏦</span>
+        <span class="fin-lbl">現預金残高<span class="fin-sub">シミュレーション値</span></span>
+        <span class="fin-amt pos">${balance.toLocaleString()}万円</span>
+      </div>
+      <div class="fin-total-row">
+        <span class="fin-total-lbl">資産合計</span>
+        <span class="fin-total-amt" style="color:#007aff">${balance.toLocaleString()}万円</span>
+      </div>
+    </div>
+    <div class="fin-block">
+      <div class="fin-sec">負債</div>
+      <div class="fin-row">
+        <span class="fin-lbl" style="color:#8e8e93;font-size:13px">※ローン等の入力がある場合ここに表示</span>
+      </div>
+      <div class="fin-total-row">
+        <span class="fin-total-lbl">負債合計</span>
+        <span class="fin-total-amt" style="color:#8e8e93">0万円</span>
+      </div>
+    </div>
+    <div class="fin-net-card">
+      <div>
+        <div class="fin-net-lbl">純資産</div>
+        <div style="font-size:11px;color:#8e8e93;margin-top:2px">前年比 ${diff>=0?'+':''}${diff.toLocaleString()}万円</div>
+      </div>
+      <span class="fin-net-amt" style="color:${balance>=0?'#007aff':'#ff3b30'}">${balance.toLocaleString()}万円</span>
+    </div>`;
 }
 
 // ─── Tabs ─────────────────────────────────────────────────
