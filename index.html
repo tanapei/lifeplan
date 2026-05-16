@@ -1167,7 +1167,8 @@ function exportJSON(){
 function resetAll(){
   if(!confirm('すべてリセットしますか？')) return;
   S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[]};
-  save(); updateSettingsDisp(); refreshAll();
+  cfAge=0; bsAge=0;
+  save(); goTab('graph'); refreshAll();
 }
 
 
