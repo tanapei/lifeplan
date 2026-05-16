@@ -454,11 +454,17 @@ function renderChart(){
   const incomes  = idxs.map(i=>sim.yInc[i]);
   const expenses = idxs.map(i=>sim.yExp[i]);
 
-  // color negative segments red
-  const lineColors = assets.map(v=>v<0?'rgba(255,59,48,1)':'rgba(0,122,255,1)');
+  // データ更新のみ（キャンバスが非表示でも壊れない）
+  if(chart){
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = assets;
+    chart.data.datasets[1].data = incomes;
+    chart.data.datasets[2].data = expenses;
+    chart.update('none');
+    return;
+  }
 
   const ctx = document.getElementById('mainChart').getContext('2d');
-  if(chart) chart.destroy();
   chart = new Chart(ctx, {
     plugins:[markerPlugin],
     data:{
