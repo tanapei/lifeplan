@@ -107,6 +107,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .adv-body{display:none}
 .adv-body.open{display:block}
 
+/* ── Birth Sheet ── */
+.sch-box{background:white;margin:4px 20px;border-radius:14px;overflow:hidden;border:1.5px solid #e5e5ea}
+.sch-row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #f2f2f7}
+.sch-row:last-child{border-bottom:none}
+.sch-label{flex:1;font-size:15px}
+.sch-opts{display:flex;gap:5px}
+.sch-opt{padding:6px 11px;border:1.5px solid #e5e5ea;border-radius:20px;font-size:13px;font-weight:500;background:white;color:#3c3c43;cursor:pointer;font-family:inherit;white-space:nowrap}
+.sch-opt.active{background:#007aff;color:white;border-color:#007aff}
+.birth-total-row{display:flex;justify-content:space-between;align-items:center;padding:10px 20px 4px}
+.birth-total-label{font-size:13px;color:#8e8e93}
+.birth-total-val{font-size:20px;font-weight:700;color:#007aff}
+
 /* ── Submit ── */
 .sub-btn{margin:12px 20px;width:calc(100% - 40px);padding:16px;background:#007aff;color:white;border:none;border-radius:14px;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
 .sub-btn:active{opacity:.85}
@@ -530,20 +542,13 @@ function addExpense(){
 const QE=[
   {cat:'家族・ライフステージ',items:[
     {name:'結婚',icon:'💍',amount:300,duration:1,type:'expense'},
-    {name:'出産',icon:'👶',amount:50,duration:1,type:'expense'},
+    {name:'出産・養育費',icon:'👶',amount:0,duration:0,type:'expense',special:'birth'},
     {name:'離婚',icon:'💔',amount:200,duration:1,type:'expense'},
     {name:'介護開始',icon:'🏥',amount:60,duration:10,type:'expense'},
   ]},
   {cat:'住居',items:[
     {name:'持ち家購入（頭金）',icon:'🏠',amount:500,duration:1,type:'expense'},
     {name:'リフォーム',icon:'🔧',amount:200,duration:1,type:'expense'},
-  ]},
-  {cat:'教育費',items:[
-    {name:'幼稚園',icon:'🎒',amount:15,duration:3,type:'expense'},
-    {name:'小学校',icon:'📚',amount:10,duration:6,type:'expense'},
-    {name:'中学校',icon:'📐',amount:15,duration:3,type:'expense'},
-    {name:'高校',icon:'🏫',amount:20,duration:3,type:'expense'},
-    {name:'大学',icon:'🎓',amount:100,duration:4,type:'expense'},
   ]},
   {cat:'キャリア・収入',items:[
     {name:'転職（収入増）',icon:'📈',amount:60,duration:1,type:'income'},
@@ -562,12 +567,115 @@ function openEventSheet(){
   const html = QE.map(c=>`
     <div class="ev-cat">${c.cat}</div>
     <div class="ev-grid">${c.items.map(it=>`
-      <button class="eq-btn" onclick='openConfirm(${JSON.stringify(it)})'>
+      <button class="eq-btn" onclick='${it.special==="birth"?"openBirthSheet()":"openConfirm("+JSON.stringify(it)+")"}'>
         <span class="eq-icon">${it.icon}</span>
         <span>${it.name}</span>
       </button>`).join('')}
     </div>`).join('');
   openSheet(`<div class="sh-title">ライフイベントを選ぶ</div>${html}<div style="height:24px"></div>`);
+}
+
+// ─── Birth & Education Sheet ──────────────────────────────
+const SCHOOL_DEF = {
+  nursery: {label:'幼稚園', icon:'🎒', offset:3,  dur:3, pub:16,  priv:30 },
+  elem:    {label:'小学校', icon:'📚', offset:6,  dur:6, pub:32,  priv:100},
+  middle:  {label:'中学校', icon:'📐', offset:12, dur:3, pub:50,  priv:140},
+  high:    {label:'高　校', icon:'🏫', offset:15, dur:3, pub:50,  priv:100, optional:true},
+  univ:    {label:'大　学', icon:'🎓', offset:18, dur:4, pub:110, priv:150, optional:true},
+};
+let BC = {}; // birth config
+
+function openBirthSheet(){
+  BC = {
+    age: Math.min(S.age+3, S.endAge),
+    birthCost: 50,
+    nursery:'pub', elem:'pub', middle:'pub', high:'pub', univ:'pub',
+    custom: {}
+  };
+  renderBirthSheet();
+}
+
+function calcBirthTotal(){
+  let t = BC.birthCost;
+  Object.entries(SCHOOL_DEF).forEach(([k,s])=>{
+    if(BC[k]==='none') return;
+    const amt = BC.custom[k] != null ? BC.custom[k] : (BC[k]==='pub'?s.pub:s.priv);
+    t += amt * s.dur;
+  });
+  return t;
+}
+
+function renderBirthSheet(){
+  const rows = Object.entries(SCHOOL_DEF).map(([k,s])=>`
+    <div class="sch-row">
+      <span class="sch-label">${s.icon} ${s.label}</span>
+      <div class="sch-opts">
+        ${s.optional?`<button class="sch-opt ${BC[k]==='none'?'active':''}" onclick="setBirthOpt('${k}','none')">なし</button>`:''}
+        <button class="sch-opt ${BC[k]==='pub'?'active':''}" onclick="setBirthOpt('${k}','pub')">公立</button>
+        <button class="sch-opt ${BC[k]==='priv'?'active':''}" onclick="setBirthOpt('${k}','priv')">私立</button>
+      </div>
+    </div>`).join('');
+
+  const advRows = Object.entries(SCHOOL_DEF).map(([k,s])=>{
+    if(BC[k]==='none') return '';
+    const def = BC[k]==='pub'?s.pub:s.priv;
+    const val = BC.custom[k] != null ? BC.custom[k] : def;
+    return `<div class="sch-row">
+      <span class="sch-label" style="font-size:14px">${s.icon} ${s.label}<span style="font-size:11px;color:#8e8e93;margin-left:4px">${s.dur}年間</span></span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input class="fi" style="width:72px;padding:8px;font-size:15px;text-align:right"
+          type="number" inputmode="numeric" value="${val}"
+          onchange="BC.custom['${k}']=parseFloat(this.value)||0;updateBirthTotal()">
+        <span style="font-size:12px;color:#8e8e93">万/年</span>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  openSheet(`
+    <div class="sh-title">👶 出産・養育費</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">出産時の年齢</label>${spHTML('ba',BC.age,S.age,S.endAge)}</div>
+      <div class="fg"><label class="fl">出産費用（万円）</label>
+        <input class="fi" id="bcost" type="number" value="${BC.birthCost}" inputmode="numeric"
+          onchange="BC.birthCost=parseFloat(this.value)||0;updateBirthTotal()"></div>
+    </div>
+    <div style="padding:4px 20px 2px;font-size:12px;font-weight:600;color:#8e8e93;letter-spacing:.4px;text-transform:uppercase">学校ルート</div>
+    <div class="sch-box">${rows}</div>
+    <div class="birth-total-row">
+      <span class="birth-total-label">教育費合計（概算）</span>
+      <span class="birth-total-val" id="birthTotal">${calcBirthTotal().toLocaleString()}万円</span>
+    </div>
+    <div class="adv-tog" onclick="togAdv()">▸ 詳細（金額カスタマイズ）</div>
+    <div class="adv-body" id="advBody">
+      <div class="sch-box" style="margin-top:4px">${advRows||'<div style="padding:12px 14px;color:#8e8e93;font-size:14px">選択なし</div>'}</div>
+    </div>
+    <button class="sub-btn" onclick="addBirthEvents()">追　加</button>
+    <div style="height:24px"></div>`);
+}
+
+function setBirthOpt(k, val){
+  BC[k]=val; delete BC.custom[k];
+  renderBirthSheet();
+}
+
+function updateBirthTotal(){
+  const el=document.getElementById('birthTotal');
+  if(el) el.textContent=calcBirthTotal().toLocaleString()+'万円';
+}
+
+function addBirthEvents(){
+  const baseAge = spv('ba');
+  S.events.push({id:Date.now(),name:'出産',icon:'👶',age:baseAge,duration:1,amount:BC.birthCost,type:'expense'});
+  Object.entries(SCHOOL_DEF).forEach(([k,s])=>{
+    if(BC[k]==='none') return;
+    const amt = BC.custom[k]!=null ? BC.custom[k] : (BC[k]==='pub'?s.pub:s.priv);
+    S.events.push({
+      id:Date.now()+Math.random(),
+      name:`${s.label}（${BC[k]==='pub'?'公立':'私立'}）`,
+      icon:s.icon, age:baseAge+s.offset, duration:s.dur, amount:amt, type:'expense'
+    });
+  });
+  save(); closeSheet(); goTab('graph'); refreshAll();
 }
 
 function openConfirm(it){
