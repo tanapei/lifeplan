@@ -362,8 +362,9 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 <script>
 // ─── State ───────────────────────────────────────────────
 let S = JSON.parse(localStorage.getItem('lp2') || 'null') || {
-  age:30, endAge:90, savings:0, incomes:[], expenses:[], events:[]
+  age:30, endAge:90, savings:0, incomes:[], expenses:[], events:[], children:[]
 };
+if(!S.children) S.children=[];
 const save = () => localStorage.setItem('lp2', JSON.stringify(S));
 
 // ─── Simulation ──────────────────────────────────────────
@@ -391,6 +392,13 @@ function simulate() {
         if(a===ev.age+d){ ev.type==='income'?inc+=ev.amount:exp+=ev.amount; }
       }
     });
+    S.children.forEach(child=>{
+      childEvents(child).forEach(ev=>{
+        for(let d=0;d<(ev.duration||1);d++){
+          if(a===ev.age+d) exp+=ev.amount;
+        }
+      });
+    });
     bal += inc - exp;
     ages.push(a); assets.push(Math.round(bal));
     yInc.push(Math.round(inc)); yExp.push(Math.round(exp));
@@ -402,12 +410,14 @@ function simulate() {
 const markerPlugin = {
   id:'eventMarkers',
   afterDraw(chart){
-    if(!S.events.length) return;
+    const allMarkers=[];
+    S.events.forEach(ev=>allMarkers.push(ev));
+    S.children.forEach(child=>childEvents(child).forEach(ev=>allMarkers.push(ev)));
+    if(!allMarkers.length) return;
     const ctx=chart.ctx, xsc=chart.scales.x;
     const top=chart.chartArea.top, bot=chart.chartArea.bottom;
-    // group by age label
     const byLabel={};
-    S.events.forEach(ev=>{
+    allMarkers.forEach(ev=>{
       const lbl=ev.age+'歳';
       const idx=chart.data.labels.indexOf(lbl);
       if(idx<0) return;
@@ -471,10 +481,17 @@ function renderChart(){
         const idx=Math.round(ch.scales.x.getValueForPixel(pos.x));
         if(idx<0||idx>=ch.data.labels.length) return;
         const age=parseInt(ch.data.labels[idx]);
-        const evs=S.events.filter(ev=>ev.age===age);
+        const evs=S.events.filter(ev=>ev.age===age).map(ev=>({...ev,_type:'event'}));
+        S.children.forEach(child=>{
+          childEvents(child).forEach(ev=>{
+            if(ev.age===age) evs.push({...ev,_type:'child',_childId:child.id,_childName:child.name});
+          });
+        });
         if(!evs.length) return;
-        if(evs.length===1) openEntryAction('event',evs[0].id);
-        else openMultiEventPicker(evs);
+        if(evs.length===1){
+          if(evs[0]._type==='child') openEntryAction('child',evs[0]._childId);
+          else openEntryAction('event',evs[0].id);
+        } else openMultiEventPicker(evs);
       },
       interaction:{mode:'index', intersect:false},
       plugins:{
@@ -536,7 +553,23 @@ function renderTimeline(){
         <span class="ev-amt ${e.type==='income'?'in':'out'}" style="flex-shrink:0">${e.type==='income'?'+':'-'}${e.amount.toLocaleString()}万</span>
         ${arrow}
       </div>`).join('')}` : '';
-  el.innerHTML = `<div style="background:white">${incHTML}${expHTML}${evHTML}</div>`;
+  const childHTML = S.children.length ? `
+    <div class="all-sec-hd">子ども・養育費</div>
+    ${S.children.map(child=>{
+      const total=childEvents(child).reduce((s,e)=>s+e.amount*(e.duration||1),0);
+      const lastSchool=Object.entries(SCHOOL_DEF).filter(([k])=>child[k]!=='none').pop();
+      const lastLabel=lastSchool?lastSchool[1].label:'';
+      return `<div class="ev-row" onclick="openEntryAction('child',${child.id})">
+        <span class="ev-icon">👶</span>
+        <div style="flex:1;min-width:0">
+          <div class="ev-name">${child.name}</div>
+          <div class="ev-age">${child.birthAge}歳時出産${lastLabel?'〜'+lastLabel:''}</div>
+        </div>
+        <span class="ev-amt out" style="flex-shrink:0">-${total.toLocaleString()}万</span>
+        ${arrow}
+      </div>`;
+    }).join('')}` : '';
+  el.innerHTML = `<div style="background:white">${incHTML}${expHTML}${evHTML}${childHTML}</div>`;
 }
 
 function refreshAll(){
@@ -593,14 +626,22 @@ function renderCF(age){
     for(let d=0;d<(ev.duration||1);d++) if(age===ev.age+d) return true; return false;
   }).map(ev=>({id:ev.id,type:'event',icon:ev.icon||'🎯',label:ev.name,sub:'イベント',amt:ev.amount,pos:ev.type==='income'}));
 
+  const childExpRows=[];
+  S.children.forEach(child=>{
+    childEvents(child).forEach(ev=>{
+      let hit=false;
+      for(let d=0;d<(ev.duration||1);d++) if(age===ev.age+d) hit=true;
+      if(hit) childExpRows.push({id:child.id,type:'child',icon:ev.icon,label:`${child.name} ${ev.name}`,sub:'養育費',amt:ev.amount,pos:false});
+    });
+  });
   const allInc=[...incRows,...evRows.filter(r=>r.pos)];
-  const allExp=[...expRows,...evRows.filter(r=>!r.pos)];
+  const allExp=[...expRows,...evRows.filter(r=>!r.pos),...childExpRows];
   const totalInc=allInc.reduce((s,r)=>s+r.amt,0);
   const totalExp=allExp.reduce((s,r)=>s+r.amt,0);
   const net=totalInc-totalExp;
 
   const rowHTML=rows=>rows.map(r=>`
-    <div class="fin-row" style="cursor:pointer" onclick="editEntry('${r.type}',${r.id})">
+    <div class="fin-row" style="cursor:pointer" onclick="${r.type==='child'?`openEntryAction('child',${r.id})`:`editEntry('${r.type}',${r.id})`}">
       <span class="fin-ico">${r.icon}</span>
       <span class="fin-lbl">${r.label}<span class="fin-sub">${r.sub}</span></span>
       <span class="fin-amt ${r.pos?'pos':'neg'}">${r.pos?'+':'-'}${r.amt.toLocaleString()}万</span>
@@ -639,10 +680,10 @@ function openMultiEventPicker(evs){
     <div class="sh-title">イベントを選択</div>
     <div style="background:white;margin:8px 12px;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08)">
       ${evs.map(ev=>`
-        <div class="ev-row" onclick="openEntryAction('event',${ev.id})">
+        <div class="ev-row" onclick="${ev._type==='child'?`openEntryAction('child',${ev._childId})`:ev._type==='event'?`openEntryAction('event',${ev.id})`:`openEntryAction('event',${ev.id})`}">
           <span class="ev-icon">${ev.icon||'🎯'}</span>
-          <span class="ev-name" style="flex:1">${ev.name}</span>
-          <span class="ev-amt ${ev.type==='income'?'in':'out'}">${ev.type==='income'?'+':'-'}${ev.amount.toLocaleString()}万</span>
+          <span class="ev-name" style="flex:1">${ev._type==='child'?`${ev._childName} ${ev.name}`:ev.name}</span>
+          <span class="ev-amt out">-${ev.amount.toLocaleString()}万</span>
           <span style="color:#c7c7cc;font-size:16px;margin-left:4px">›</span>
         </div>`).join('')}
     </div>
@@ -922,7 +963,20 @@ const SCHOOL_DEF = {
 };
 let BC = {}; // birth config
 
+function childEvents(child){
+  const evs=[];
+  evs.push({id:`${child.id}_birth`,childId:child.id,age:child.birthAge,duration:1,amount:child.birthCost,type:'expense',name:'出産',icon:'👶'});
+  Object.entries(SCHOOL_DEF).forEach(([k,s])=>{
+    if(child[k]==='none') return;
+    const amt=child.custom[k]!=null?child.custom[k]:(child[k]==='pub'?s.pub:s.priv);
+    evs.push({id:`${child.id}_${k}`,childId:child.id,age:child.birthAge+s.offset,duration:s.dur,amount:amt,type:'expense',
+      name:`${s.label}（${child[k]==='pub'?'公立':'私立'}）`,icon:s.icon});
+  });
+  return evs;
+}
+
 function openBirthSheet(){
+  editingId=null; editingType=null;
   BC = {
     age: Math.min(S.age+3, S.endAge),
     birthCost: 50,
@@ -996,7 +1050,7 @@ function renderBirthSheet(){
     <div class="adv-body" id="advBody">
       <div class="sch-box" style="margin-top:4px">${advRows||'<div style="padding:12px 14px;color:#8e8e93;font-size:14px">選択なし</div>'}</div>
     </div>
-    <button class="sub-btn" onclick="addBirthEvents()">追　加</button>
+    <button class="sub-btn" onclick="addBirthEvents()">${editingId!=null?'更　新':'追　加'}</button>
     <div style="height:24px"></div>`);
 }
 
@@ -1011,18 +1065,36 @@ function updateBirthTotal(){
 }
 
 function addBirthEvents(){
-  const baseAge = spv('ba');
-  S.events.push({id:Date.now(),name:'出産',icon:'👶',age:baseAge,duration:1,amount:BC.birthCost,type:'expense'});
-  Object.entries(SCHOOL_DEF).forEach(([k,s])=>{
-    if(BC[k]==='none') return;
-    const amt = BC.custom[k]!=null ? BC.custom[k] : (BC[k]==='pub'?s.pub:s.priv);
-    S.events.push({
-      id:Date.now()+Math.random(),
-      name:`${s.label}（${BC[k]==='pub'?'公立':'私立'}）`,
-      icon:s.icon, age:baseAge+s.offset, duration:s.dur, amount:amt, type:'expense'
-    });
-  });
+  BC.birthCost=parseFloat(document.getElementById('bcost').value)||BC.birthCost;
+  const baseAge=spv('ba');
+  const isEdit=editingId!=null;
+  const existingName=isEdit?S.children.find(x=>x.id===editingId)?.name:null;
+  const childNum=S.children.filter(x=>x.id!==editingId).length+1;
+  const child={
+    id: isEdit?editingId:Date.now(),
+    name: existingName||`第${childNum}子`,
+    birthAge:baseAge, birthCost:BC.birthCost,
+    nursery:BC.nursery, elem:BC.elem, middle:BC.middle, high:BC.high, univ:BC.univ,
+    custom:{...BC.custom}
+  };
+  if(isEdit){
+    const i=S.children.findIndex(x=>x.id===editingId);
+    if(i>=0) S.children[i]=child;
+    editingId=null;
+  } else {
+    S.children.push(child);
+  }
   save(); closeSheet(); goTab('graph'); refreshAll();
+}
+
+function editChild(id){
+  const child=S.children.find(x=>x.id===id);
+  if(!child) return;
+  editingId=id; editingType='child';
+  BC={age:child.birthAge, birthCost:child.birthCost,
+    nursery:child.nursery, elem:child.elem, middle:child.middle, high:child.high, univ:child.univ,
+    custom:{...child.custom}};
+  renderBirthSheet();
 }
 
 function openConfirm(it){
@@ -1107,6 +1179,21 @@ function showList(type){
 }
 
 function openEntryAction(type,id){
+  if(type==='child'){
+    const child=S.children.find(x=>x.id===id);
+    if(!child) return;
+    const total=childEvents(child).reduce((s,e)=>s+e.amount*(e.duration||1),0);
+    openSheet(`
+      <div class="sh-title">👶 ${child.name}</div>
+      <div style="padding:2px 20px 8px;font-size:13px;color:#8e8e93">${child.birthAge}歳時出産・総額 ${total.toLocaleString()}万円（概算）</div>
+      <div style="margin:0">
+        <button class="act-btn" onclick="editChild(${id})"><span style="font-size:22px">✏️</span> 内容を変更</button>
+        <button class="act-btn danger" onclick="delEntry('child',${id})"><span style="font-size:22px">🗑️</span> 削　除</button>
+      </div>
+      <button class="sub-btn" style="background:#f2f2f7;color:#3c3c43" onclick="closeSheet()">キャンセル</button>
+      <div style="height:24px"></div>`);
+    return;
+  }
   const items=type==='income'?S.incomes:type==='expense'?S.expenses:S.events;
   const it=items.find(x=>x.id===id);
   if(!it) return;
@@ -1156,6 +1243,7 @@ function delEntry(type,id){
   if(type==='income')  S.incomes=S.incomes.filter(x=>x.id!==id);
   if(type==='expense') S.expenses=S.expenses.filter(x=>x.id!==id);
   if(type==='event')   S.events=S.events.filter(x=>x.id!==id);
+  if(type==='child')   S.children=S.children.filter(x=>x.id!==id);
   save(); closeSheet(); refreshAll();
 }
 
@@ -1166,7 +1254,7 @@ function exportJSON(){
 }
 function resetAll(){
   if(!confirm('すべてリセットしますか？')) return;
-  S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[]};
+  S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[],children:[]};
   cfAge=0; bsAge=0;
   save(); goTab('graph'); refreshAll();
 }
