@@ -228,6 +228,38 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .empty{text-align:center;padding:36px 20px;color:#8e8e93}
 .empty-ico{font-size:44px;margin-bottom:10px}
 .empty p{font-size:15px}
+
+/* ── Onboarding ── */
+#page-onboard{background:white}
+.ob-wrap{min-height:100dvh;display:flex;flex-direction:column;padding:0 28px 40px;align-items:stretch}
+.ob-progress{display:flex;gap:6px;justify-content:center;padding:16px 0 0}
+.ob-dot{height:6px;border-radius:3px;background:#e5e5ea;transition:all .3s;width:6px}
+.ob-dot-act{background:#007aff;width:20px}
+.ob-step{display:none;flex:1;flex-direction:column;align-items:center;padding:28px 0 0;text-align:center}
+.ob-step-act{display:flex}
+.ob-logo{font-size:64px;margin-bottom:12px}
+.ob-brand{font-size:32px;font-weight:800;letter-spacing:-0.5px;color:#1c1c1e;margin-bottom:8px}
+.ob-tagline{font-size:16px;color:#8e8e93;line-height:1.6}
+.ob-ques{font-size:24px;font-weight:700;color:#1c1c1e;margin-bottom:6px}
+.ob-qhint{font-size:14px;color:#8e8e93;margin-bottom:24px}
+.ob-num{width:100%;text-align:center;border:none;font-size:72px;font-weight:700;color:#007aff;letter-spacing:-3px;line-height:1;background:transparent;font-family:inherit;-moz-appearance:textfield;outline:none}
+.ob-num::-webkit-outer-spin-button,.ob-num::-webkit-inner-spin-button{-webkit-appearance:none}
+.ob-unit{font-size:16px;color:#8e8e93;margin-bottom:20px}
+.ob-sl{width:100%;accent-color:#007aff;margin-bottom:8px}
+.ob-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.ob-chip{padding:10px 18px;border:2px solid #e5e5ea;border-radius:22px;font-size:15px;font-weight:500;background:white;color:#3c3c43;cursor:pointer;font-family:inherit}
+.ob-chip:active{border-color:#007aff;background:rgba(0,122,255,.1);color:#007aff}
+.ob-next{width:100%;padding:16px;background:#007aff;color:white;border:none;border-radius:14px;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
+.ob-next:active{background:#0062cc}
+.ob-skip{padding:10px 20px;color:#8e8e93;font-size:14px;background:none;border:none;cursor:pointer;font-family:inherit;margin-top:6px}
+
+/* ── Template Cards ── */
+.tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 16px 4px}
+.tpl-card{border:2px solid #e5e5ea;border-radius:14px;padding:16px 10px;text-align:center;background:white;cursor:pointer;font-family:inherit;display:block;width:100%}
+.tpl-card:active{background:#f2f2f7;border-color:#007aff}
+.tpl-icon{font-size:28px;margin-bottom:6px}
+.tpl-name{font-size:14px;font-weight:600;color:#1c1c1e}
+.tpl-hint{font-size:11px;color:#8e8e93;margin-top:3px}
 </style>
 </head>
 <body>
@@ -289,6 +321,90 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 
     <!-- ② Add (placeholder) -->
     <div class="page" id="page-add"></div>
+
+    <!-- ④ Onboarding -->
+<div class="page" id="page-onboard">
+  <div class="ob-wrap">
+    <div class="ob-progress">
+      <div class="ob-dot ob-dot-act" id="od0"></div>
+      <div class="ob-dot" id="od1"></div>
+      <div class="ob-dot" id="od2"></div>
+      <div class="ob-dot" id="od3"></div>
+      <div class="ob-dot" id="od4"></div>
+    </div>
+    <!-- Step 0: Welcome -->
+    <div class="ob-step ob-step-act" id="ob-0">
+      <div class="ob-logo">💰</div>
+      <div class="ob-brand">AI × <span style="color:#007aff">FP</span></div>
+      <div class="ob-tagline">AIと一緒に考える<br>あなたのファイナンシャルプラン</div>
+      <div style="flex:1;min-height:40px"></div>
+      <button class="ob-next" onclick="obNext()">はじめる</button>
+      <button class="ob-skip" onclick="skipOnboard()">スキップ（あとで設定する）</button>
+    </div>
+    <!-- Step 1: Age -->
+    <div class="ob-step" id="ob-1">
+      <div class="ob-ques">今おいくつですか？</div>
+      <div class="ob-qhint">ざっくりで大丈夫です</div>
+      <input type="number" id="ob-age" class="ob-num" value="30" min="18" max="80" inputmode="numeric"
+        oninput="document.getElementById('ob-age-sl').value=this.value">
+      <div class="ob-unit">歳</div>
+      <input type="range" id="ob-age-sl" class="ob-sl" min="18" max="80" value="30"
+        oninput="document.getElementById('ob-age').value=this.value">
+      <div style="flex:1;min-height:24px"></div>
+      <button class="ob-next" onclick="obNext()">次へ →</button>
+      <button class="ob-skip" onclick="obBack()">← もどる</button>
+    </div>
+    <!-- Step 2: Savings -->
+    <div class="ob-step" id="ob-2">
+      <div class="ob-ques">現在の貯蓄・資産は？</div>
+      <div class="ob-qhint">ざっくりでOKです</div>
+      <input type="number" id="ob-savings" class="ob-num" value="0" min="0" inputmode="numeric">
+      <div class="ob-unit">万円</div>
+      <div class="ob-chips">
+        <button class="ob-chip" onclick="obChip('ob-savings',0)">なし</button>
+        <button class="ob-chip" onclick="obChip('ob-savings',100)">100万</button>
+        <button class="ob-chip" onclick="obChip('ob-savings',300)">300万</button>
+        <button class="ob-chip" onclick="obChip('ob-savings',500)">500万</button>
+        <button class="ob-chip" onclick="obChip('ob-savings',1000)">1000万+</button>
+      </div>
+      <div style="flex:1;min-height:16px"></div>
+      <button class="ob-next" onclick="obNext()">次へ →</button>
+      <button class="ob-skip" onclick="obBack()">← もどる</button>
+    </div>
+    <!-- Step 3: Income -->
+    <div class="ob-step" id="ob-3">
+      <div class="ob-ques">毎月の手取り収入は？</div>
+      <div class="ob-qhint">給与・副業など合計</div>
+      <input type="number" id="ob-income" class="ob-num" value="30" min="0" inputmode="numeric">
+      <div class="ob-unit">万円 / 月</div>
+      <div class="ob-chips">
+        <button class="ob-chip" onclick="obChip('ob-income',20)">20万</button>
+        <button class="ob-chip" onclick="obChip('ob-income',30)">30万</button>
+        <button class="ob-chip" onclick="obChip('ob-income',40)">40万</button>
+        <button class="ob-chip" onclick="obChip('ob-income',50)">50万+</button>
+      </div>
+      <div style="flex:1;min-height:16px"></div>
+      <button class="ob-next" onclick="obNext()">次へ →</button>
+      <button class="ob-skip" onclick="obBack()">← もどる</button>
+    </div>
+    <!-- Step 4: Expense -->
+    <div class="ob-step" id="ob-4">
+      <div class="ob-ques">毎月の生活費は？</div>
+      <div class="ob-qhint">家賃・食費・通信費など合計</div>
+      <input type="number" id="ob-expense" class="ob-num" value="15" min="0" inputmode="numeric">
+      <div class="ob-unit">万円 / 月</div>
+      <div class="ob-chips">
+        <button class="ob-chip" onclick="obChip('ob-expense',10)">10万</button>
+        <button class="ob-chip" onclick="obChip('ob-expense',15)">15万</button>
+        <button class="ob-chip" onclick="obChip('ob-expense',20)">20万</button>
+        <button class="ob-chip" onclick="obChip('ob-expense',25)">25万+</button>
+      </div>
+      <div style="flex:1;min-height:16px"></div>
+      <button class="ob-next" onclick="finishOnboard()">プランを作る 🎉</button>
+      <button class="ob-skip" onclick="obBack()">← もどる</button>
+    </div>
+  </div>
+</div>
 
     <!-- ③ Settings Page -->
     <div class="page" id="page-settings">
@@ -358,9 +474,10 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 <script>
 // ─── State ───────────────────────────────────────────────
 let S = JSON.parse(localStorage.getItem('lp2') || 'null') || {
-  age:30, endAge:90, savings:0, incomes:[], expenses:[], events:[], children:[]
+  age:30, endAge:90, savings:0, incomes:[], expenses:[], events:[], children:[], onboarded:false
 };
 if(!S.children) S.children=[];
+if(S.onboarded === undefined) S.onboarded = true; // existing users skip onboarding
 const save = () => localStorage.setItem('lp2', JSON.stringify(S));
 
 // ─── Simulation ──────────────────────────────────────────
@@ -766,11 +883,11 @@ function openAdd(){
   openSheet(`
     <div class="sh-title">何を追加しますか？</div>
     <div class="type-btns">
-      <button class="type-btn t-inc" onclick="openIncForm()">
+      <button class="type-btn t-inc" onclick="openIncTpl()">
         <span class="tb-icon">💰</span>
         <div><div>収　入</div><div class="tb-sub">給与・年金・副業など</div></div>
       </button>
-      <button class="type-btn t-exp" onclick="openExpForm()">
+      <button class="type-btn t-exp" onclick="openExpTpl()">
         <span class="tb-icon">💸</span>
         <div><div>支　出</div><div class="tb-sub">生活費・家賃・保険など</div></div>
       </button>
@@ -779,6 +896,84 @@ function openAdd(){
         <div><div>ライフイベント</div><div class="tb-sub">結婚・住宅・教育費など</div></div>
       </button>
     </div>`);
+}
+function openIncTpl(){
+  const T=[
+    {icon:'💼',name:'給与',hint:'会社員・パートなど',def:{name:'給与',amount:30,unit:'month',startAge:S.age,endAge:65,rate:0}},
+    {icon:'💻',name:'副業',hint:'フリーランスなど',def:{name:'副業',amount:5,unit:'month',startAge:S.age,endAge:65,rate:0}},
+    {icon:'🏛',name:'年金',hint:'65歳〜の公的年金',def:{name:'年金',amount:15,unit:'month',startAge:65,endAge:S.endAge,rate:0}},
+    {icon:'🏢',name:'家賃収入',hint:'不動産投資など',def:{name:'家賃収入',amount:8,unit:'month',startAge:S.age,endAge:S.endAge,rate:0}},
+    {icon:'💰',name:'その他収入',hint:'ボーナス・相続など',def:{name:'その他収入',amount:10,unit:'year',startAge:S.age,endAge:65,rate:0}},
+    {icon:'✏️',name:'自由入力',hint:'',def:{name:'',amount:0,unit:'month',startAge:S.age,endAge:65,rate:0}},
+  ];
+  openSheet(`
+    <div class="sh-title">収入を追加</div>
+    <div class="tpl-grid">
+      ${T.map(t=>`
+        <button class="tpl-card" onclick='openIncForm(${JSON.stringify(t.def)})'>
+          <div class="tpl-icon">${t.icon}</div>
+          <div class="tpl-name">${t.name}</div>
+          ${t.hint?`<div class="tpl-hint">${t.hint}</div>`:''}
+        </button>`).join('')}
+    </div>
+    <div style="height:16px"></div>`);
+}
+function openExpTpl(){
+  const T=[
+    {icon:'🏠',name:'家賃',hint:'毎月の住居費',def:{name:'家賃',amount:8,unit:'month',startAge:S.age,endAge:65,rate:0}},
+    {icon:'🛒',name:'生活費',hint:'食費・日用品など',def:{name:'生活費',amount:15,unit:'month',startAge:S.age,endAge:S.endAge,rate:0}},
+    {icon:'🚗',name:'車維持費',hint:'ガソリン・保険など',def:{name:'車維持費',amount:3,unit:'month',startAge:S.age,endAge:70,rate:0}},
+    {icon:'📱',name:'通信費',hint:'スマホ・Wi-Fiなど',def:{name:'通信費',amount:1,unit:'month',startAge:S.age,endAge:S.endAge,rate:0}},
+    {icon:'🏥',name:'医療・介護費',hint:'60代以降の備え',def:{name:'医療費',amount:2,unit:'month',startAge:60,endAge:S.endAge,rate:0}},
+    {icon:'✏️',name:'自由入力',hint:'',def:{name:'',amount:0,unit:'month',startAge:S.age,endAge:S.endAge,rate:0}},
+  ];
+  openSheet(`
+    <div class="sh-title">支出を追加</div>
+    <div class="tpl-grid">
+      ${T.map(t=>`
+        <button class="tpl-card" onclick='openExpForm(${JSON.stringify(t.def)})'>
+          <div class="tpl-icon">${t.icon}</div>
+          <div class="tpl-name">${t.name}</div>
+          ${t.hint?`<div class="tpl-hint">${t.hint}</div>`:''}
+        </button>`).join('')}
+    </div>
+    <div style="height:16px"></div>`);
+}
+
+// ─── Onboarding ──────────────────────────────────────────────
+let obStep=0;
+function showObStep(n){
+  obStep=n;
+  for(let i=0;i<5;i++){
+    const s=document.getElementById('ob-'+i);
+    if(s) s.className='ob-step'+(i===n?' ob-step-act':'');
+    const d=document.getElementById('od'+i);
+    if(d) d.className='ob-dot'+(i===n?' ob-dot-act':'');
+  }
+}
+function obChip(id,v){ document.getElementById(id).value=v; }
+function obBack(){ if(obStep>0) showObStep(obStep-1); }
+function obNext(){
+  if(obStep===1){ S.age=Math.max(18,Math.min(80,parseInt(document.getElementById('ob-age').value)||30)); }
+  else if(obStep===2){ S.savings=parseInt(document.getElementById('ob-savings').value)||0; }
+  else if(obStep===3){ /* income stored in finishOnboard */ }
+  if(obStep<4) showObStep(obStep+1);
+}
+function skipOnboard(){
+  S.onboarded=true; save();
+  document.getElementById('tabbar').style.display='';
+  goTab('graph'); refreshAll(); updateSettingsDisp();
+}
+function finishOnboard(){
+  S.age=Math.max(18,Math.min(80,parseInt(document.getElementById('ob-age')?.value)||S.age));
+  S.savings=parseInt(document.getElementById('ob-savings')?.value)||S.savings;
+  const inc=parseInt(document.getElementById('ob-income').value)||30;
+  const exp=parseInt(document.getElementById('ob-expense').value)||15;
+  if(!S.incomes.length) S.incomes=[{id:Date.now(),name:'給与',amount:inc,unit:'month',startAge:S.age,endAge:65,rate:0}];
+  if(!S.expenses.length) S.expenses=[{id:Date.now()+1,name:'生活費',amount:exp,unit:'month',startAge:S.age,endAge:S.endAge,rate:0}];
+  S.onboarded=true; save();
+  document.getElementById('tabbar').style.display='';
+  goTab('graph'); refreshAll(); updateSettingsDisp();
 }
 
 // ─── Age Slider+Number helper ──────────────────────────────
@@ -814,12 +1009,13 @@ function togAdv(){
   const b=document.getElementById('advBody');
   const t=document.querySelector('.adv-tog');
   b.classList.toggle('open');
-  t.textContent=(b.classList.contains('open')?'▾':'▸')+' 詳細設定（増減率）';
+  const open=b.classList.contains('open');
+  t.textContent=t.textContent.replace(/^[▸▾]/,open?'▾':'▸');
 }
 
 function openIncForm(def={},editId=null){
   editingId=editId; editingType='income';
-  const d={name:'給与',amount:30,unit:'month',startAge:S.age,endAge:60,rate:0,...def};
+  const d={name:'給与',amount:30,unit:'month',startAge:S.age,endAge:65,rate:0,...def};
   const isEdit=editId!=null;
   openSheet(`
     <div class="sh-title">${isEdit?'収入を編集':'収入を追加'}</div>
@@ -834,13 +1030,13 @@ function openIncForm(def={},editId=null){
           <button class="uopt ${d.unit==='year'?'active':''}" id="uy" onclick="setU('year')">年</button>
         </div></div>
     </div>
-    <div class="frow">
-      <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
-      ${endAgeSection(d.endAge)}
-    </div>
-    <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
-    <div class="adv-body" id="advBody">
-      <div class="fg"><label class="fl">年率増減 (%)</label>
+    <div class="adv-tog" onclick="togAdv()">▸ 期間・詳細設定</div>
+    <div class="adv-body${isEdit?' open':''}" id="advBody">
+      <div class="frow">
+        <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
+        ${endAgeSection(d.endAge)}
+      </div>
+      <div class="fg" style="padding:0 20px 8px"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal" placeholder="例：1.0"></div>
     </div>
     ${isEdit
@@ -870,7 +1066,7 @@ function addIncome(){
 
 function openExpForm(def={},editId=null){
   editingId=editId; editingType='expense';
-  const d={name:'生活費',amount:20,unit:'month',startAge:S.age,endAge:'',rate:0,...def};
+  const d={name:'生活費',amount:20,unit:'month',startAge:S.age,endAge:S.endAge,rate:0,...def};
   const isEdit=editId!=null;
   openSheet(`
     <div class="sh-title">${isEdit?'支出を編集':'支出を追加'}</div>
@@ -885,13 +1081,13 @@ function openExpForm(def={},editId=null){
           <button class="uopt ${d.unit==='year'?'active':''}" id="uy" onclick="setU('year')">年</button>
         </div></div>
     </div>
-    <div class="frow">
-      <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
-      ${endAgeSection(d.endAge)}
-    </div>
-    <div class="adv-tog" onclick="togAdv()">▸ 詳細設定（増減率）</div>
-    <div class="adv-body" id="advBody">
-      <div class="fg"><label class="fl">年率増減 (%)</label>
+    <div class="adv-tog" onclick="togAdv()">▸ 期間・詳細設定</div>
+    <div class="adv-body${isEdit?' open':''}" id="advBody">
+      <div class="frow">
+        <div class="fg"><label class="fl">開始年齢</label>${spHTML('fs',d.startAge,0,100)}</div>
+        ${endAgeSection(d.endAge)}
+      </div>
+      <div class="fg" style="padding:0 20px 8px"><label class="fl">年率増減 (%)</label>
         <input class="fi" id="fr" type="number" value="${d.rate}" step="0.1" inputmode="decimal"></div>
     </div>
     ${isEdit
@@ -1271,15 +1467,21 @@ function exportJSON(){
 }
 function resetAll(){
   if(!confirm('すべてリセットしますか？')) return;
-  S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[],children:[]};
+  S={age:30,endAge:90,savings:0,incomes:[],expenses:[],events:[],children:[],onboarded:true};
   cfAge=0; bsAge=0;
   save(); goTab('graph'); refreshAll();
 }
 
 
 // ─── Boot ─────────────────────────────────────────────────
-refreshAll();
-updateSettingsDisp();
+if(!S.onboarded){
+  document.getElementById('tabbar').style.display='none';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-onboard').classList.add('active');
+} else {
+  refreshAll();
+  updateSettingsDisp();
+}
 </script>
 </body>
 </html>
