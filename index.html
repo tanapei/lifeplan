@@ -670,24 +670,6 @@ function resetAll(){
   save(); updateSettingsDisp(); refreshAll();
 }
 
-// ─── Sample Data ──────────────────────────────────────────
-if(!S.incomes.length && !S.expenses.length && !S.events.length){
-  S.incomes=[
-    {id:1,name:'給与',amount:30,unit:'month',startAge:30,endAge:60,rate:1},
-    {id:2,name:'年金',amount:15,unit:'month',startAge:65,endAge:90,rate:0},
-  ];
-  S.expenses=[
-    {id:3,name:'生活費',amount:20,unit:'month',startAge:30,endAge:90,rate:0},
-    {id:4,name:'家賃',amount:8,unit:'month',startAge:30,endAge:40,rate:0},
-  ];
-  S.events=[
-    {id:5,name:'結婚',icon:'💍',age:33,duration:1,amount:300,type:'expense'},
-    {id:6,name:'持ち家購入',icon:'🏠',age:40,duration:1,amount:500,type:'expense'},
-    {id:7,name:'子ども 大学',icon:'🎓',age:48,duration:4,amount:100,type:'expense'},
-    {id:8,name:'定年退職（退職金）',icon:'👔',age:60,duration:1,amount:1000,type:'income'},
-  ];
-  save();
-}
 
 // ─── Boot ─────────────────────────────────────────────────
 refreshAll();
