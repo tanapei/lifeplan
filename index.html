@@ -119,10 +119,11 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .frow{display:flex;gap:10px;padding:8px 20px}
 .frow .fg{padding:0;flex:1}
 
-/* ── Stepper ── */
-.stepper{display:flex;align-items:center;border:1.5px solid #e5e5ea;border-radius:12px;overflow:hidden;height:48px}
-.sp-btn{width:44px;height:100%;border:none;background:#f2f2f7;font-size:22px;cursor:pointer;color:#007aff;display:flex;align-items:center;justify-content:center;font-family:inherit;flex-shrink:0}
-.sp-val{flex:1;text-align:center;font-size:17px;font-weight:600}
+/* ── Age Slider Input ── */
+.age-inp{display:flex;align-items:center;gap:10px;padding:4px 0}
+.age-inp input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
+.age-num{width:58px;text-align:center;border:1.5px solid #e5e5ea;border-radius:10px;padding:8px 4px;font-size:18px;font-weight:600;color:#1c1c1e;background:white;font-family:inherit;-moz-appearance:textfield}
+.age-num::-webkit-outer-spin-button,.age-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 /* ── Unit Toggle ── */
 .utgl{display:flex;border:1.5px solid #007aff;border-radius:10px;overflow:hidden;height:48px}
@@ -182,11 +183,6 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .acc-bd{display:none;border-bottom:2px solid #f2f2f7}
 .acc-bd.open{display:block}
 
-/* ── Lifelong toggle ── */
-.lifelong-tog{padding:6px 14px;border:1.5px solid #e5e5ea;border-radius:20px;font-size:13px;font-weight:500;background:white;color:#8e8e93;cursor:pointer;font-family:inherit;white-space:nowrap}
-.lifelong-tog.active{background:#007aff;color:white;border-color:#007aff}
-.end-age-wrap{transition:opacity .2s}
-.end-age-wrap.disabled{opacity:.3;pointer-events:none}
 
 /* ── School row 2-line (optional) ── */
 .sch-row-stack{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px}
@@ -534,7 +530,7 @@ function renderTimeline(){
         <span class="ev-icon">💰</span>
         <div style="flex:1;min-width:0">
           <div class="ev-name">${it.name}</div>
-          <div class="ev-age">${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}</div>
+          <div class="ev-age">${it.startAge}歳〜${(it.endAge===''||it.endAge==null)?S.endAge+'歳':it.endAge+'歳'}</div>
         </div>
         <span class="ev-amt in" style="flex-shrink:0">+${it.amount.toLocaleString()}万${it.unit==='month'?'/月':'/年'}</span>
         ${arrow}
@@ -546,7 +542,7 @@ function renderTimeline(){
         <span class="ev-icon">💸</span>
         <div style="flex:1;min-width:0">
           <div class="ev-name">${it.name}</div>
-          <div class="ev-age">${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}</div>
+          <div class="ev-age">${it.startAge}歳〜${(it.endAge===''||it.endAge==null)?S.endAge+'歳':it.endAge+'歳'}</div>
         </div>
         <span class="ev-amt out" style="flex-shrink:0">-${it.amount.toLocaleString()}万${it.unit==='month'?'/月':'/年'}</span>
         ${arrow}
@@ -785,41 +781,30 @@ function openAdd(){
     </div>`);
 }
 
-// ─── Stepper helper ──────────────────────────────────────
+// ─── Age Slider+Number helper ──────────────────────────────
 function spHTML(id,val,min,max){
-  return `<div class="stepper">
-    <button class="sp-btn" ontouchstart="" onclick="spChg('${id}',-1,${min},${max})">−</button>
-    <span class="sp-val" id="${id}" data-v="${val}">${val}</span>
-    <button class="sp-btn" ontouchstart="" onclick="spChg('${id}',1,${min},${max})">＋</button>
+  return `<div class="age-inp">
+    <input type="range" id="${id}_sl" min="${min}" max="${max}" value="${val}" oninput="agSync('${id}',this.value,${min},${max})">
+    <input type="number" id="${id}" class="age-num" min="${min}" max="${max}" value="${val}" inputmode="numeric" onchange="agSync('${id}',this.value,${min},${max})">
   </div>`;
 }
-function spChg(id,d,mn,mx){
-  const el=document.getElementById(id);
-  let v=+el.dataset.v+d; v=Math.max(mn,Math.min(mx,v));
-  el.dataset.v=v; el.textContent=v;
+function agSync(id,v,mn,mx){
+  v=Math.max(+mn,Math.min(+mx,parseInt(v)||+mn));
+  const n=document.getElementById(id); if(n) n.value=v;
+  const s=document.getElementById(id+'_sl'); if(s) s.value=v;
 }
-function spv(id){return parseInt(document.getElementById(id).dataset.v);}
+function spv(id){return parseInt(document.getElementById(id).value)||0;}
 
 // ─── Income Form ──────────────────────────────────────────
-let editingId=null, editingType=null, isLifelong=false;
+let editingId=null, editingType=null;
 
 function endAgeSection(endAge){
-  const lifelong = endAge==='' || endAge==null;
-  isLifelong = lifelong;
-  const ea = lifelong ? S.endAge : endAge;
+  const ea = (endAge===''||endAge==null) ? S.endAge : endAge;
   return `
     <div class="fg">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <label class="fl" style="margin:0">終了年齢</label>
-        <button class="lifelong-tog ${lifelong?'active':''}" id="lifelongBtn" onclick="toggleLifelong()">終身</button>
-      </div>
-      <div class="end-age-wrap ${lifelong?'disabled':''}" id="endAgeWrap">${spHTML('fe',ea,0,100)}</div>
+      <label class="fl">終了年齢</label>
+      ${spHTML('fe',ea,0,100)}
     </div>`;
-}
-function toggleLifelong(){
-  isLifelong=!isLifelong;
-  document.getElementById('lifelongBtn').classList.toggle('active',isLifelong);
-  document.getElementById('endAgeWrap').classList.toggle('disabled',isLifelong);
 }
 function setU(u){
   document.getElementById('um').classList.toggle('active',u==='month');
@@ -872,8 +857,7 @@ function addIncome(){
   if(!name||amount<=0){alert('名称と金額を入力してください');return;}
   const unit=document.getElementById('um').classList.contains('active')?'month':'year';
   const rate=parseFloat(document.getElementById('fr')?.value)||0;
-  const endAge=isLifelong?'':spv('fe');
-  const obj={name,amount,unit,startAge:spv('fs'),endAge,rate};
+  const obj={name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate};
   if(editingId){
     const i=S.incomes.findIndex(x=>x.id===editingId);
     if(i>=0) S.incomes[i]={...S.incomes[i],...obj};
@@ -924,8 +908,7 @@ function addExpense(){
   if(!name||amount<=0){alert('名称と金額を入力してください');return;}
   const unit=document.getElementById('um').classList.contains('active')?'month':'year';
   const rate=parseFloat(document.getElementById('fr')?.value)||0;
-  const endAge=isLifelong?'':spv('fe');
-  const obj={name,amount,unit,startAge:spv('fs'),endAge,rate};
+  const obj={name,amount,unit,startAge:spv('fs'),endAge:spv('fe'),rate};
   if(editingId){
     const i=S.expenses.findIndex(x=>x.id===editingId);
     if(i>=0) S.expenses[i]={...S.expenses[i],...obj};
@@ -1185,7 +1168,7 @@ function showList(type){
     ?'<div class="empty"><div class="empty-ico">📋</div><p>登録なし</p></div>'
     :items.map(it=>{
         const isIn=type==='income'||(type==='event'&&it.type==='income');
-        const detail=type==='event'?`${it.age}歳・${it.duration||1}年間`:`${it.startAge}歳〜${it.endAge===''?'終身':it.endAge+'歳'}`;
+        const detail=type==='event'?`${it.age}歳・${it.duration||1}年間`:`${it.startAge}歳〜${(it.endAge===''||it.endAge==null)?S.endAge+'歳':it.endAge+'歳'}`;
         const unitStr=type!=='event'?(it.unit==='month'?'/月':'/年'):'';
         return `<div class="ent-item" onclick="openEntryAction('${type}',${it.id})">
           <span class="ent-ico">${it.icon||(type==='income'?'💰':type==='expense'?'💸':'🎯')}</span>
