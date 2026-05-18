@@ -1,0 +1,7 @@
+name = "lifeplan-fp-proxy"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Deploy: wrangler deploy
+# Set API key: wrangler secret put CLAUDE_API_KEY
+# Then paste your Anthropic API key when prompted
