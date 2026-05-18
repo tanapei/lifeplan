@@ -930,9 +930,11 @@ function goTab(t){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+t).classList.add('active');
-  document.getElementById('tab-'+t).classList.add('active');
+  const tabEl=document.getElementById('tab-'+t);
+  if(tabEl) tabEl.classList.add('active');
   if(t==='settings') updateSettingsDisp();
-  if(t==='graph' && chartDirty) renderChart();
+  if(t==='graph'&&chartDirty) renderChart();
+  if(t==='ai') renderAIChat();
 }
 
 // ─── Sheet helpers ────────────────────────────────────────
@@ -1400,6 +1402,8 @@ function updateSettingsDisp(){
   document.getElementById('d-age').textContent  = S.age+'歳';
   document.getElementById('d-savings').textContent = S.savings.toLocaleString()+'万円';
   document.getElementById('d-endAge').textContent = S.endAge+'歳';
+  const wEl=document.getElementById('d-worker-url');
+  if(wEl) wEl.textContent=getWorkerUrl()?'設定済み ✓':'未設定';
   updateCounts();
 }
 function updateCounts(){
@@ -1540,6 +1544,163 @@ function resetAll(){
   save(); goTab('graph'); refreshAll();
 }
 
+
+// ─── AI Chat ────────────────────────────────────────────────
+let chatHistory=[];
+
+const AI_SYSTEM=`あなたはFP1級（ファイナンシャルプランニング技能士1級）レベルの知識を持つ、親身なファイナンシャルプランナーです。
+
+専門知識：公的年金（老齢基礎年金・老齢厚生年金の受給額推計、繰上げ・繰下げ受給）、NISA・iDeCoの税制優遇活用法、教育資金・住宅資金・老後資金の3大資金設計、必要保障額の考え方、インフレ・運用利回りリスクへの対応、キャッシュフロー改善の手法。
+
+【回答ルール】
+- 必ず日本語で回答すること
+- ユーザーの実際の数値（金額・年齢）を必ず引用し、具体的に回答すること
+- 問題点・改善策は優先度の高い順に最大3点に絞ること
+- 「月○万円増やす」「○歳から始める」など具体的な行動を示すこと
+- 回答の最後に必ず「※本アドバイスは一般的な情報提供であり、個別の投資・税務アドバイスではありません。重要な意思決定の前は専門家にご相談ください。」を付記すること`;
+
+function buildFPContext(){
+  const sim=simulate();
+  const keyAges=[40,50,60,65,70,S.endAge].filter(a=>a>S.age&&a<=S.endAge);
+  const assetLines=keyAges.map(a=>{
+    const i=sim.ages.indexOf(a);
+    return i>=0?`・${a}歳：${Math.round(sim.assets[i]).toLocaleString()}万円`:'';
+  }).filter(Boolean).join('\n');
+
+  let defAge=null;
+  for(let i=0;i<sim.assets.length;i++){if(sim.assets[i]<0){defAge=sim.ages[i];break;}}
+  let peakAmt=0,peakAge=S.age;
+  sim.assets.forEach((a,i)=>{if(a>peakAmt){peakAmt=a;peakAge=sim.ages[i];}});
+
+  const fmtInc=it=>`・${it.name}：${it.amount}万円/${it.unit==='month'?'月':'年'}（${it.startAge}歳〜${it.endAge}歳）`;
+  const fmtExp=it=>`・${it.name}：${it.amount}万円/${it.unit==='month'?'月':'年'}（${it.startAge}歳〜${it.endAge}歳）`;
+  const fmtEv=e=>`・${e.name}（${e.age}歳）：${e.type==='income'?'+':'-'}${e.amount}万円 ${e.duration>1?e.duration+'年間':''}`;
+  const fmtCh=c=>{const tot=childEvents(c).reduce((s,e)=>s+e.amount*(e.duration||1),0);return`・${c.name}（${c.birthAge}歳時出産）養育・教育費合計：${tot.toLocaleString()}万円`;};
+
+  return `## ユーザーのライフプランデータ
+
+【基本情報】
+・現在年齢：${S.age}歳　シミュレーション終了：${S.endAge}歳
+・現在の貯蓄：${S.savings.toLocaleString()}万円
+
+【収入】
+${S.incomes.length?S.incomes.map(fmtInc).join('\n'):'なし'}
+
+【支出】
+${S.expenses.length?S.expenses.map(fmtExp).join('\n'):'なし'}
+
+【ライフイベント】
+${S.events.length?S.events.map(fmtEv).join('\n'):'なし'}
+
+【子ども・教育費】
+${S.children.length?S.children.map(fmtCh).join('\n'):'なし'}
+
+【資産推移シミュレーション】
+${assetLines||'データなし'}
+・最大資産：${Math.round(peakAmt).toLocaleString()}万円（${peakAge}歳時点）
+・最終資産（${S.endAge}歳）：${Math.round(sim.assets[sim.assets.length-1]).toLocaleString()}万円
+${defAge?`・⚠️ ${defAge}歳で資産がマイナスになる見込み`:'・シミュレーション期間中は黒字を維持'}`;
+}
+
+function getWorkerUrl(){return localStorage.getItem('fp_worker_url')||'';}
+
+function renderAIChat(){
+  const el=document.getElementById('aiChat');
+  if(!el) return;
+  if(!chatHistory.length){
+    const hasKey=!!getWorkerUrl();
+    el.innerHTML=`
+      ${!hasKey?`<div class="ai-no-key">⚠️ 設定画面でWorker URLを登録するとAI相談が使えます。</div>`:''}
+      <div class="ai-empty">
+        <div class="ai-empty-ico">🤖</div>
+        <p>FP1級レベルのAIが<br>あなたのライフプランを分析します。<br><br>上のボタンか、テキストで<br>質問してください。</p>
+      </div>`;
+    return;
+  }
+  el.innerHTML=chatHistory.map(m=>`
+    <div class="ai-bubble ${m.role==='user'?'user':'asst'}">
+      ${m.role==='user'
+        ? m.content.replace(/</g,'&lt;')
+        : m.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}
+    </div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+async function sendAI(text){
+  const url=getWorkerUrl();
+  if(!url){alert('設定画面でWorker URLを登録してください');goTab('settings');return;}
+  const inp=document.getElementById('aiInput');
+  const msg=(text||inp?.value||'').trim();
+  if(!msg||document.getElementById('aiSend')?.disabled) return;
+  if(inp){inp.value='';inp.style.height='auto';}
+
+  chatHistory.push({role:'user',content:msg});
+  renderAIChat();
+
+  // typing indicator
+  const el=document.getElementById('aiChat');
+  if(el){
+    el.innerHTML+=`<div class="ai-bubble asst" id="ai-typing">
+      <div class="ai-typing"><div class="ai-tdot"></div><div class="ai-tdot"></div><div class="ai-tdot"></div></div>
+    </div>`;
+    el.scrollTop=el.scrollHeight;
+  }
+
+  const btn=document.getElementById('aiSend');
+  if(btn) btn.disabled=true;
+
+  try{
+    const context=buildFPContext();
+    const systemWithCtx=AI_SYSTEM+'\n\n'+context;
+    const res=await fetch(url+'/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:1024,
+        system:systemWithCtx,
+        messages:chatHistory.slice(-10).map(m=>({role:m.role,content:m.content}))
+      })
+    });
+    if(!res.ok){const e=await res.text();throw new Error(`APIエラー (${res.status}): ${e}`);}
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||'応答を取得できませんでした';
+    chatHistory.push({role:'assistant',content:reply});
+  }catch(e){
+    chatHistory.push({role:'assistant',content:`エラーが発生しました：${e.message}\n\nWorker URLや設定を確認してください。`});
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+  renderAIChat();
+}
+
+function sendQuick(q){sendAI(q);}
+
+function clearChat(){
+  if(chatHistory.length&&!confirm('会話履歴をリセットしますか？')) return;
+  chatHistory=[];
+  renderAIChat();
+}
+
+function editWorkerUrl(){
+  const cur=getWorkerUrl();
+  openSheet(`
+    <div class="sh-title">Worker URL設定</div>
+    <div class="fg"><label class="fl">Cloudflare Worker URL</label>
+      <input class="fi" id="wurl" value="${cur}" placeholder="https://your-worker.workers.dev" inputmode="url"></div>
+    <div style="padding:4px 20px 12px;font-size:13px;color:#8e8e93;line-height:1.6">
+      CloudflareにデプロイしたプロキシのベースURLを入力してください（末尾スラッシュ不要）。
+    </div>
+    <button class="sub-btn" onclick="saveWorkerUrl()">保存</button>
+    <div style="height:24px"></div>`);
+}
+
+function saveWorkerUrl(){
+  const url=(document.getElementById('wurl').value||'').trim().replace(/\/$/,'');
+  localStorage.setItem('fp_worker_url',url);
+  closeSheet();
+  updateSettingsDisp();
+}
 
 // ─── Boot ─────────────────────────────────────────────────
 if(!S.onboarded){
