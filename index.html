@@ -260,6 +260,37 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
 .tpl-icon{font-size:28px;margin-bottom:6px}
 .tpl-name{font-size:14px;font-weight:600;color:#1c1c1e}
 .tpl-hint{font-size:11px;color:#8e8e93;margin-top:3px}
+
+/* ── AI Chat ── */
+#page-ai{display:flex;flex-direction:column;height:100%}
+.ai-header{background:white;padding:14px 16px 10px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:10;flex-shrink:0}
+.ai-header-row{display:flex;align-items:center;justify-content:space-between}
+.ai-header h1{font-size:20px;font-weight:700}
+.ai-clear-btn{font-size:13px;color:#007aff;background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 8px}
+.ai-sub{font-size:12px;color:#8e8e93;margin-top:2px}
+.ai-quick-wrap{flex-shrink:0;background:white;border-bottom:1px solid #f2f2f7;padding:8px 0}
+.ai-quick-scroll{display:flex;gap:8px;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.ai-quick-scroll::-webkit-scrollbar{display:none}
+.ai-qchip{flex-shrink:0;padding:8px 14px;border:1.5px solid #007aff;border-radius:20px;font-size:13px;font-weight:500;color:#007aff;background:white;cursor:pointer;font-family:inherit;white-space:nowrap}
+.ai-qchip:active{background:#007aff;color:white}
+.ai-chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.ai-bubble{max-width:85%;padding:12px 14px;border-radius:18px;font-size:15px;line-height:1.6;word-break:break-word}
+.ai-bubble.user{background:#007aff;color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.ai-bubble.asst{background:white;color:#1c1c1e;align-self:flex-start;border-bottom-left-radius:4px;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+.ai-typing{display:flex;gap:5px;align-items:center;padding:4px 2px}
+.ai-tdot{width:8px;height:8px;background:#c7c7cc;border-radius:50%;animation:aidot .9s infinite}
+.ai-tdot:nth-child(2){animation-delay:.2s}
+.ai-tdot:nth-child(3){animation-delay:.4s}
+@keyframes aidot{0%,100%{transform:translateY(0)}45%{transform:translateY(-6px)}}
+.ai-input-wrap{flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px 12px;background:white;border-top:1px solid #e5e5ea}
+.ai-input{flex:1;border:1.5px solid #e5e5ea;border-radius:22px;padding:10px 16px;font-size:15px;font-family:inherit;resize:none;outline:none;max-height:120px;line-height:1.4;overflow-y:auto}
+.ai-input:focus{border-color:#007aff}
+.ai-send{width:44px;height:44px;background:#007aff;color:white;border:none;border-radius:50%;font-size:22px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:300}
+.ai-send:disabled{background:#c7c7cc;cursor:default}
+.ai-empty{text-align:center;padding:32px 24px;color:#8e8e93}
+.ai-empty-ico{font-size:52px;margin-bottom:14px}
+.ai-empty p{font-size:14px;line-height:1.7}
+.ai-no-key{background:#fff8e1;border:1px solid #ffca28;border-radius:12px;padding:14px 16px;margin:16px;font-size:14px;color:#7a5c00;line-height:1.5}
 </style>
 </head>
 <body>
@@ -406,6 +437,33 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
   </div>
 </div>
 
+    <!-- ④ AI Chat Page -->
+    <div class="page" id="page-ai">
+      <div class="ai-header">
+        <div class="ai-header-row">
+          <h1>AI相談</h1>
+          <button class="ai-clear-btn" onclick="clearChat()">履歴をクリア</button>
+        </div>
+        <div class="ai-sub">FP1級レベルのAIがあなたのプランを分析します</div>
+      </div>
+      <div class="ai-quick-wrap">
+        <div class="ai-quick-scroll">
+          <button class="ai-qchip" onclick="sendQuick('現在のプランの問題点や課題を分析してください')">📊 現在の課題は？</button>
+          <button class="ai-qchip" onclick="sendQuick('資産を増やすための具体的な改善アドバイスをください')">💡 改善アドバイス</button>
+          <button class="ai-qchip" onclick="sendQuick('老後（65歳以降）の資産準備は十分かどうか教えてください')">🎯 老後の準備は？</button>
+          <button class="ai-qchip" onclick="sendQuick('このプランのリスクや注意すべき点を教えてください')">⚠️ リスクを教えて</button>
+          <button class="ai-qchip" onclick="sendQuick('NISAやiDeCoをどう活用すべきか教えてください')">📈 NISA・iDeCo</button>
+        </div>
+      </div>
+      <div class="ai-chat" id="aiChat"></div>
+      <div class="ai-input-wrap">
+        <textarea class="ai-input" id="aiInput" placeholder="プランについて質問する..." rows="1"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI()}"></textarea>
+        <button class="ai-send" id="aiSend" onclick="sendAI()">↑</button>
+      </div>
+    </div>
+
     <!-- ③ Settings Page -->
     <div class="page" id="page-settings">
       <div class="page-header"><h1>設定</h1></div>
@@ -439,6 +497,13 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
           <span class="set-val" id="d-ev-count"></span><span class="set-arr">›</span>
         </div>
       </div>
+      <p class="set-sec-title">AI設定</p>
+      <div class="set-sec">
+        <div class="set-row" onclick="editWorkerUrl()">
+          <span class="set-lbl">Worker URL</span>
+          <span class="set-val" id="d-worker-url">未設定</span><span class="set-arr">›</span>
+        </div>
+      </div>
       <p class="set-sec-title">データ管理</p>
       <div class="set-sec">
         <div class="set-row" onclick="exportJSON()">
@@ -458,6 +523,9 @@ input[type=range]{flex:1;accent-color:#007aff;height:4px;cursor:pointer}
     </button>
     <button class="tab-btn tab-add" id="tab-add" onclick="openAdd()">
       <span class="tab-icon">＋</span><span>追加</span>
+    </button>
+    <button class="tab-btn" id="tab-ai" onclick="goTab('ai')">
+      <span class="tab-icon">🤖</span><span>AI相談</span>
     </button>
     <button class="tab-btn" id="tab-settings" onclick="goTab('settings')">
       <span class="tab-icon">☰</span><span>設定</span>
